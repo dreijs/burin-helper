@@ -1,6 +1,8 @@
 # burin-helper
 Helper files for Burin
 
+* [Input Files & Licenses](https://github.com/dreijs/burin-helper/blob/main/documentation/InputFiles.md)
+
 * [ElevationMapCreator](https://github.com/dreijs/burin-helper/blob/main/documentation/ElevationMapCreator.md)
 
 * [BiomeMapCreator](https://github.com/dreijs/burin-helper/blob/main/documentation/BiomeMapCreator.md)
