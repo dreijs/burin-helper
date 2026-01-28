@@ -1,9 +1,4 @@
 package vectormaps;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import javax.imageio.ImageIO;
-
 import util.Colors;
 
 public class ElevationMapCreator {
@@ -15,15 +10,16 @@ public class ElevationMapCreator {
 	public static final String ELEVATION_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\gebco_08_rev_elev_21600x10800.png";
 	public static final String BATHYMETRY_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\gebco_08_rev_bath_21600x10800.png";
 	public static final String BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\eo_base_2020_clean_geo_modified.png";
-	public static final String OUTPUT_FOLDER = System.getProperty("user.dir")+"\\output\\elevation_map_samples\\";
-	public static final String BASE_MAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\threshold_00.png";
-	public static final String ELEVATION_MAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\elevation_levels.png";
-
-	public static final int BLUE = 0xFF05629B;
-	public static final int GREEN = 0xFF768E6E;
 	
-	public static final int SCALE = 4;
+	public static final String SAMPLES_OUTPUT_FOLDER = System.getProperty("user.dir")+"\\output\\map\\samples\\elevation_samples\\";
+	public static final String BASE_MAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\base_map.png";
+	public static final String ELEVATION_MAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\elevation_levels.png";
 
+	public static final int BLUE = 0xFF106090;
+	public static final int GREEN = 0xFF709070;
+
+	public static final int SCALE = 1;
+	
 	public static final int[][] LEVEL_COLORS = new int[][] {
 		{20, 0xFF008800},
 		{40, 0xFF00BB00},
@@ -39,6 +35,25 @@ public class ElevationMapCreator {
 		{240, 0xFF662200},
 		{256, 0xFF551100}
 	};
+
+//	public static final int[][] LEVEL_COLORS = new int[][] {
+//		{16, 0xFF007700},
+//		{32, 0xFF009200},
+//		{48, 0xFF00AA00},
+//		{64, 0xFF11CC00},
+//		{80, 0xFF33EE00},
+//		{96, 0xFF66FF00},
+//		{112, 0xFF99FF00},
+//		{128, 0xFFFFFF00},
+//		{144, 0xFFFFDD11},
+//		{160, 0xFFDDBB22},
+//		{176, 0xFFBB7744},
+//		{192, 0xFF995522},
+//		{208, 0xFF884411},
+//		{224, 0xFF773300},
+//		{240, 0xFF662200},
+//		{256, 0xFF551100}
+//	};
 
 	public void createSampleMaps() {
 
@@ -65,7 +80,7 @@ public class ElevationMapCreator {
 					}
 				}
 
-				FileOperator.writeImage(filteredData, OUTPUT_FOLDER+"threshold_"+threshold+".png");
+				FileOperator.writeImage(filteredData, SAMPLES_OUTPUT_FOLDER+"threshold_"+threshold+".png");
 
 				System.out.println("threshold "+threshold+" finished");
 			}
@@ -132,11 +147,9 @@ public class ElevationMapCreator {
 
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		//		new ElevationMapCreator().createSampleMaps();
 		new ElevationMapCreator().createBaseMap();
 		new ElevationMapCreator().createElevationMap();
-		//		new ElevationMapCreator().createMountainMap();
+		new ElevationMapCreator().createSampleMaps();
 	}
 
 }

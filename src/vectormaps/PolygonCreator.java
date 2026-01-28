@@ -5,10 +5,12 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import util.Colors;
 import util.Geometry;
 import util.Point;
 import util.Region;
@@ -25,6 +27,14 @@ class RegionResult {
 }
 
 public class PolygonCreator {
+
+	public static final String POLYGONS_BASE_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_base.txt";
+	public static final String POLYGONS_PRUNED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_pruned.txt";
+	public static final String POLYGONS_ORDERED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_ordered.txt";
+	public static final String POLYGONS_FINAL_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_final.txt";
+
+	public static final String REGIONS_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\regions.png";
+	public static final String VISUAL_REGIONS_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\regions_visual.png";
 
 	RegionResult result;
 
@@ -152,113 +162,12 @@ public class PolygonCreator {
 			cRegion++;
 		}
 
-		visualizeRegion(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\regions_visual.png");
-		FileOperator.writeImage(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\regions.png");
+		visualizeRegion(regions, VISUAL_REGIONS_FILENAME);
+		FileOperator.writeImage(regions, REGIONS_FILENAME);
 
 		System.out.println((cRegion-1)+" regions");
 		return new RegionResult(regions, cRegion-1);
 	}
-
-
-
-	//	void addToPolygon(Point p1, Point p2, Region region, int oppIdx) {
-	//		//		for(int i=0;i<region.polygons.size();i++) {
-	//		//			List<Point> polygon = region.polygons.get(i);
-	//		//			List<Integer> idxs = region.opposingRegions.get(i);
-	//		//
-	//		//			Point p0 = polygon.get(0);
-	//		//			if(p0.equals(p1)) {
-	//		//				polygon.addFirst(p2);
-	//		//				idxs.addFirst(oppIdx);
-	//		//				return;
-	//		//			}
-	//		//			if(p0.equals(p2)) {
-	//		//				polygon.addFirst(p1);
-	//		//				idxs.addFirst(oppIdx);
-	//		//				return;
-	//		//			}
-	//		//
-	//		//			p0 = polygon.get(polygon.size() - 1);
-	//		//			if(p0.equals(p1)) {
-	//		//				polygon.addLast(p2);
-	//		//				idxs.set(idxs.size()-1,oppIdx);
-	//		//				idxs.addLast(oppIdx);
-	//		//				return;
-	//		//			}
-	//		//			if(p0.equals(p2)) {
-	//		//				polygon.addLast(p1);
-	//		//				idxs.set(idxs.size()-1,oppIdx);
-	//		//				idxs.addLast(oppIdx);
-	//		//				return;
-	//		//			}
-	//		//		}
-	//
-	//		List<Point> list = new LinkedList<Point>();
-	//		list.add(p1);
-	//		list.add(p2);
-	//		List<Integer> idxList = new LinkedList<Integer>();
-	//		idxList.add(oppIdx);
-	//		region.addPolygon(list, idxList);
-	//	}
-
-	//	void connectPolygons(List<Region> regions) {
-	//		for(Region region : regions) {
-	//			for(int i=region.polygons.size()-1;i>=0;i--) {
-	//				if(region.regionIdx == 2989) System.out.println(region.polygons.get(i));
-	//				Point fi = region.polygons.get(i).getFirst();
-	//				Point li = region.polygons.get(i).getLast();
-	//				for(int j=i-1;j>=0;j--) {
-	//					Point fj = region.polygons.get(j).getFirst();
-	//					Point lj = region.polygons.get(j).getLast();
-	//
-	//					if(fi.equals(fj)) {
-	//						for(int k=1;k<region.polygons.get(i).size();k++) {
-	//							region.polygons.get(j).addFirst(region.polygons.get(i).get(k));
-	//						}
-	//						for(int k=0;k<region.opposingRegions.get(i).size();k++) {
-	//							region.opposingRegions.get(j).addFirst(region.opposingRegions.get(i).get(k));
-	//						}
-	//						region.polygons.remove(i);
-	//						region.opposingRegions.remove(i);
-	//						break;
-	//					}
-	//					if(fi.equals(lj)) {
-	//						for(int k=1;k<region.polygons.get(i).size();k++) {
-	//							region.polygons.get(j).addLast(region.polygons.get(i).get(k));
-	//						}
-	//						for(int k=0;k<region.opposingRegions.get(i).size();k++) {
-	//							region.opposingRegions.get(j).addLast(region.opposingRegions.get(i).get(k));
-	//						}
-	//						region.polygons.remove(i);
-	//						region.opposingRegions.remove(i);
-	//						break;
-	//					}
-	//					if(li.equals(fj)) {
-	//						for(int k=region.polygons.get(i).size()-2;k>=0;k--) {
-	//							region.polygons.get(j).addFirst(region.polygons.get(i).get(k));
-	//						}
-	//						for(int k=region.opposingRegions.get(i).size()-1;k>=0;k--) {
-	//							region.opposingRegions.get(j).addFirst(region.opposingRegions.get(i).get(k));
-	//						}
-	//						region.polygons.remove(i);
-	//						region.opposingRegions.remove(i);
-	//						break;
-	//					}
-	//					if(li.equals(lj)) {
-	//						for(int k=region.polygons.get(i).size()-2;k>=0;k--) {
-	//							region.polygons.get(j).addLast(region.polygons.get(i).get(k));
-	//						}
-	//						for(int k=region.opposingRegions.get(i).size()-1;k>=0;k--) {
-	//							region.opposingRegions.get(j).addLast(region.opposingRegions.get(i).get(k));
-	//						}
-	//						region.polygons.remove(i);
-	//						region.opposingRegions.remove(i);
-	//						break;
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
 
 	int getTotalnumPoints(List<Region> regions) {
 		int total = 0;
@@ -582,12 +491,12 @@ public class PolygonCreator {
 		if (vertices.size() < 3) {
 			return null; // Cannot form a triangle
 		}
-		
+
 		for(int k=0;k<polygon.size();k++) {
 			int kk = (k+1) % polygon.size();
 			for(int k2=0;k2<polygon.size();k2++) {
 				int kk2 = (k2+1) % polygon.size();	
-				
+
 				if(Geometry.doSegmentsIntersect(polygon.get(k), polygon.get(kk), polygon.get(k2), polygon.get(kk2))) {
 					System.out.println("AAA! "+regId);
 					printShape(polygon);
@@ -711,11 +620,11 @@ public class PolygonCreator {
 		}
 	}
 
-	static int[][] initMapData(String inputFileName) {
+	static int[][] initMapData(String inputFileName, int s) {
 		int[][] mapData = null;
 
 		try{
-			mapData = FileOperator.readImage(inputFileName);
+			mapData = FileOperator.readImage(inputFileName, s);
 			System.out.println("done reading");
 		} catch(Exception e){
 			System.out.println(e.getMessage());
@@ -746,7 +655,7 @@ public class PolygonCreator {
 	//		return map;
 	//	}
 
-	static int[][] mergeMapData() {
+	static int[][] mergeMapData(int s) {
 		String[] inputFileNames = new String[] {
 				ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME,
 				BiomeMapCreator.BIOME_FINAL_RESCALED_MAP_FILENAME,
@@ -758,8 +667,7 @@ public class PolygonCreator {
 		for(int i=0;i<ElevationMapCreator.LEVEL_COLORS.length;i++) elevationMap.put(ElevationMapCreator.LEVEL_COLORS[i][1],i+1);
 
 		Map<Integer,Integer> biomeMap = new HashMap<Integer,Integer>();
-		for(int i=0;i<BiomeMapCreator.BIOMES.length;i++) biomeMap.put(BiomeMapCreator.BIOMES[i],i);
-		biomeMap.put(BiomeMapCreator.GLACIAL, BiomeMapCreator.BIOMES.length);
+		for(int i=0;i<BiomeMapCreator.ALL_BIOMES.length;i++) biomeMap.put(BiomeMapCreator.ALL_BIOMES[i],i);
 
 		Map<Integer,Integer> soilMap = new HashMap<Integer,Integer>();
 		for(int i=0;i<SoilMapCreator.ALL_SOILS.length;i++) soilMap.put(SoilMapCreator.ALL_SOILS[i],i);
@@ -779,7 +687,7 @@ public class PolygonCreator {
 		mappings.add(soilMap);
 
 		for(int i=0;i<inputFileNames.length;i++) {
-			data[i] = initMapData(inputFileNames[i]);
+			data[i] = initMapData(inputFileNames[i], s);
 			if(w == 0) {
 				w = data[i].length;
 				h = data[i][0].length;
@@ -797,7 +705,7 @@ public class PolygonCreator {
 				int v = 0;
 				for(int k=0;k<data.length;k++) {
 					int exp = (int) Math.pow(16,k);
-					//					if(!mappings.get(k).containsKey(data[k][x][y])) System.out.println("!!! " +x+" "+y+" "+data[k][x][y]+" "+k);
+					if(!mappings.get(k).containsKey(data[k][x][y])) System.out.println("error in mergeMapData!!! " +x+" "+y+" "+data[k][x][y]+" "+k);
 					v += mappings.get(k).get(data[k][x][y]) * exp;
 				}
 				finalMap[x][y] = v;
@@ -993,7 +901,7 @@ public class PolygonCreator {
 			}
 		}
 
-//		polygon.removeLast();
+		//		polygon.removeLast();
 		polygon.remove(polygon.size()-1);
 
 		region.polygon = polygon;
@@ -1038,36 +946,11 @@ public class PolygonCreator {
 				if(x < regionResult.regions.length - 1) checkInnerNeighbor(region, regionResult.regions[x+1][y]);
 				if(y > 0) checkInnerNeighbor(region, regionResult.regions[x][y-1]);
 				if(y < regionResult.regions[0].length - 1) checkInnerNeighbor(region, regionResult.regions[x][y+1]);
-
-				//				if(x == 0) {
-				//					addToPolygon(new Point(x, y), new Point(x, y+1), regions.get(regionResult.regions[x][y]), -1);
-				//				}
-				//				if(x < mapData.length - 1 && regionResult.regions[x+1][y] != regionResult.regions[x][y]) {
-				//					addToPolygon(new Point(x+1, y), new Point(x+1, y+1), regions.get(regionResult.regions[x][y]), regionResult.regions[x+1][y]);
-				//					addToPolygon(new Point(x+1, y), new Point(x+1, y+1), regions.get(regionResult.regions[x+1][y]), regionResult.regions[x][y]);
-				//				} else if(x ==  mapData.length - 1) {
-				//					addToPolygon(new Point(x+1, y), new Point(x+1, y+1), regions.get(regionResult.regions[x][y]), -1);
-				//				}
-				//
-				//				if(y == 0) {
-				//					addToPolygon(new Point(x, y), new Point(x+1, y), regions.get(regionResult.regions[x][y]), -1);
-				//				} 
-				//				if(y < mapData[x].length - 1 && regionResult.regions[x][y+1] != regionResult.regions[x][y]) {
-				//					addToPolygon(new Point(x, y+1), new Point(x+1, y+1), regions.get(regionResult.regions[x][y]), regionResult.regions[x][y+1]);
-				//					addToPolygon(new Point(x, y+1), new Point(x+1, y+1), regions.get(regionResult.regions[x][y+1]), regionResult.regions[x][y]);
-				//				} else if(y ==  mapData[x].length - 1) {
-				//					addToPolygon(new Point(x, y+1), new Point(x+1, y+1), regions.get(regionResult.regions[x][y]), -1);
-				//				}
-				//
-				//				if(regions.get(iii).polygons.size() > 0 && regions.get(iii).polygons.get(0).size() != c) {
-				//					System.out.println("! "+x+" "+y+" "+regions.get(iii).polygons.get(0)+" "+regions.get(iii).opposingRegions.get(0));
-				//					c = regions.get(iii).polygons.get(0).size();
-				//				}
 			}
 		}
 
 		System.out.println("done: create initial polygons");
-		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_base.txt");
+		printToFile(regions, POLYGONS_BASE_FILENAME);
 
 		return regions;
 	}
@@ -1076,7 +959,7 @@ public class PolygonCreator {
 		List<Region> regions = new ArrayList<Region>();
 
 		try {
-			BufferedReader reader = new BufferedReader(new FileReader(System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_pruned.txt"));
+			BufferedReader reader = new BufferedReader(new FileReader(POLYGONS_PRUNED_FILENAME));
 
 			String line;
 			Region region = null;
@@ -1168,16 +1051,19 @@ public class PolygonCreator {
 	//		}
 	//	}
 
+	void initAndPruneMap(int[][] mapData) {
+		List<Region> regions = initRegions(mapData);
+		System.out.println(getTotalnumPoints(regions));
+
+		basicPrune(regions);
+		System.out.println("done: basic prune polygons");
+		System.out.println(getTotalnumPoints(regions));
+
+		printToFile(regions, POLYGONS_PRUNED_FILENAME);
+	}
+
 	void processMap(int[][] mapData) {
-		
-		//		List<Region> regions = initRegions(mapData);
-		//		System.out.println(getTotalnumPoints(regions));
-		//
-		//		basicPrune(regions);
-		//		System.out.println("done: basic prune polygons");
-		//		System.out.println(getTotalnumPoints(regions));
-		//
-		//		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_pruned.txt");
+		initAndPruneMap(mapData);
 
 		List<Region> regions = loadConnectedPolygons();
 
@@ -1185,9 +1071,9 @@ public class PolygonCreator {
 		System.out.println("done: merged regions");
 		System.out.println(getTotalnumPoints(regions));
 
-		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_ordered.txt");
+		printToFile(regions, POLYGONS_ORDERED_FILENAME);
 
-		filterSmallRegions(regions, 1000, mapData.length, mapData[0].length);
+		filterSmallRegions(regions, 2000, mapData.length, mapData[0].length);
 		System.out.println("done: filtered small regions");
 		System.out.println(getTotalnumPoints(regions));
 
@@ -1195,27 +1081,22 @@ public class PolygonCreator {
 		//		System.out.println("done: simplify using Visvalingam-Whyatt");
 		//		System.out.println(getTotalnumPoints(regions));
 
-		simplifyDouglasPeucker(regions, 10);
-		System.out.println("done: simplify using Douglas-Peucker");
-		System.out.println(getTotalnumPoints(regions));
-
-		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_filtered.txt");
+		//		simplifyDouglasPeucker(regions, 10);
+		//		System.out.println("done: simplify using Douglas-Peucker");
+		//		System.out.println(getTotalnumPoints(regions));
+		//
+		//		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_filtered.txt");
 
 		determineTriangleDrawOrders(regions);
 		System.out.println("done: determine triangle draw order");
 
-		finalPrint(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_final.txt", mapData.length, mapData[0].length);
-
-		//		mergeRegionPolygons(polygons);
-
-		//		List<List<Triangle>> triangles = convertToTriangles(newPolygons); 
-		//		System.out.println("done: convert to triangles");
-
+		finalPrint(regions, POLYGONS_FINAL_FILENAME, mapData.length, mapData[0].length);
 	}
 
 	public static void main(String[] args) {
+		int scale = 10;
 		//		new PolygonCreator().processMap(initMapData(ElevationMapCreator.BASE_MAP_OUTPUT_FILENAME));
 		//		new PolygonCreator().processMap(initMapData(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME));
-		new PolygonCreator().processMap(mergeMapData());
+		new PolygonCreator().processMap(mergeMapData(scale));
 	}
 }

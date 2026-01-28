@@ -7,8 +7,9 @@ import java.util.Map;
 public class BiomeMapCreator {
 	// https://upload.wikimedia.org/wikipedia/commons/e/e5/Global_soils_map_USDA.jpg
 	public static final String BIOME_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Vegetation4b.png";
-	public static final String BIOME_EXTENDED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\biomes_final_extended.png";
-	public static final String BIOME_FINAL_RESCALED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\biomes_final_rescaled.png";
+
+	public static final String BIOME_EXTENDED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\biomes.png";
+	public static final String BIOME_FINAL_RESCALED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\biomes_rescaled.png";
 
 	// biome
 	static final int tundra = new Color(140, 204, 189).getRGB();
@@ -26,11 +27,9 @@ public class BiomeMapCreator {
 	static final int tree_savanna = new Color(155, 149, 14).getRGB();
 	static final int subtropical_dry = new Color(96, 122, 34).getRGB();
 	static final int tropical_rainforest = new Color(0, 70, 0).getRGB();
+	static final int glacial = new Color(201, 231, 255).getRGB();
 
-	public static final int GLACIAL = new Color(178, 178, 178).getRGB();
-
-	public static final int[] BIOMES = {tundra, taiga, temperate, steppe, subtropical_wet, mediterranean, monsoon, arid, xeric, dry_steppe, semiarid, grass_savanna, tree_savanna, subtropical_dry, tropical_rainforest};
-
+	public static final int[] ALL_BIOMES = {tundra, taiga, temperate, steppe, subtropical_wet, mediterranean, monsoon, arid, xeric, dry_steppe, semiarid, grass_savanna, tree_savanna, subtropical_dry, tropical_rainforest, glacial};
 
 	public int colDist(int col1, int col2) {
 		int col1r = (col1 >> 16) & 0xFF; 
@@ -57,14 +56,14 @@ public class BiomeMapCreator {
 			newData[x] = new int[baseData[x].length];
 			for (int y = 0; y < baseData[x].length; y++) {
 				int v = baseData[x][y];
-				boolean match = false;
-				for(int kk=0;kk<BIOMES.length;kk++) {
-					if(colDist(v, BIOMES[kk]) < d) {
-						newData[x][y] = BIOMES[kk];
-						match = true;
+				boolean isBiome = false;
+				for(int kk=0;kk<ALL_BIOMES.length;kk++) {
+					if(colDist(v, ALL_BIOMES[kk]) < d) {
+						newData[x][y] = ALL_BIOMES[kk];
+						isBiome = true;
 					}
 				}
-				if(!match) newData[x][y] = 0xFFFFFFFF;
+				if(!isBiome) newData[x][y] = 0xFFFFFFFF;
 			}
 		}
 
@@ -82,11 +81,11 @@ public class BiomeMapCreator {
 							if(xx >= 0 && xx < newData.length && yy >= 0 && yy < newData[0].length) {
 								int v = newData[xx][yy];
 								int matchIdx = -1;
-								for(int kk=0;kk<BIOMES.length;kk++) {
-									if(v == BIOMES[kk]) matchIdx = kk;
+								for(int kk=0;kk<ALL_BIOMES.length;kk++) {
+									if(v == ALL_BIOMES[kk]) matchIdx = kk;
 								}
 								if(matchIdx >= 0) {
-									int match = BIOMES[matchIdx];
+									int match = ALL_BIOMES[matchIdx];
 									if(!map.keySet().contains(match)) map.put(match, 1);
 									else map.put(match, map.get(match) + 1);
 								}
@@ -95,15 +94,35 @@ public class BiomeMapCreator {
 
 						int max = 0;
 						int argMax = 0;
+						int nMax = 0;
 						for(int key : map.keySet()) {
 							if(map.get(key) > max) {
 								max = map.get(key);
 								argMax = key;
+								nMax = 1;
+							} else if(map.get(key) == max) {
+								nMax++;
 							}
 						}
 						if(max > 0) {
-							tempNewData[x][y] = argMax;
-							changed++;
+							if(nMax == 1) {
+								if(max >= 4 || Math.random() <= (1./(4-max))) {
+									tempNewData[x][y] = argMax;
+									changed++;
+								} else tempNewData[x][y] = 0xFFFFFFFF;
+							} else {
+								int ii=0;
+								for(int key : map.keySet()) {
+									if(map.get(key) == max) {
+										if(Math.random() <= 1./(nMax - ii)) {
+											tempNewData[x][y] = key;
+											changed++;
+											break;
+										}
+										ii++;
+									}
+								}
+							}
 						} else tempNewData[x][y] = 0xFFFFFFFF;
 					} else {
 						tempNewData[x][y] = newData[x][y];
@@ -120,17 +139,15 @@ public class BiomeMapCreator {
 	}
 
 	public void rescaleBiomeMap() {
-		int[][] baseData = FileOperator.readImage(BIOME_BASE_MAP_FILENAME);
+		int[][] baseData = FileOperator.readImage(BIOME_EXTENDED_MAP_FILENAME);
 
 		int[][] nbs = {{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}};
 		int changed = 1;
 
 		int wOri = baseData.length;
 		int hOri = baseData[0].length;
-		int wTgt = 2160;
-		int hTgt = 1080;
-//				int wTgt = 2680;
-//				int hTgt = 1340;
+		int wTgt = 21600;
+		int hTgt = 10800;
 
 		int[][] newData = new int[wTgt][];
 		for (int x = 0; x < newData.length; x++) {
@@ -143,11 +160,23 @@ public class BiomeMapCreator {
 		for (int x = 0; x < baseData.length; x++) {
 			for (int y = 0; y < baseData[x].length; y++) {
 				int v = baseData[x][y];
-				for(int kk=0;kk<BIOMES.length;kk++) {
-					if(v == BIOMES[kk]) {
-						newData[x * wTgt / wOri][y * hTgt / hOri] = v;
+				boolean isBiome = false;
+				for(int kk=0;kk<ALL_BIOMES.length;kk++) {
+					if(v == ALL_BIOMES[kk]) {
+						isBiome = true;
 					}
-//					if(v == glacial) newData[x * wTgt / wOri][y * hTgt / hOri] = v;
+				}
+				if(isBiome) {
+					newData[x * wTgt / wOri][y * hTgt / hOri] = v;
+					if(x > 0 && x <baseData.length-1 && y > 0 && y < baseData[x].length - 1) {
+						if(baseData[x-1][y] == v && baseData[x+1][y] == v && baseData[x][y-1] == v && baseData[x][y+1] == v) {
+							for(int xx = x * wTgt / wOri; xx < (x+1) * wTgt / wOri; xx++) {
+								for(int yy = y * hTgt / hOri; yy < (y+1) * hTgt / hOri; yy++) {
+									newData[xx][yy] = v;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -166,11 +195,11 @@ public class BiomeMapCreator {
 							if(xx >= 0 && xx < newData.length && yy >= 0 && yy < newData[0].length) {
 								int v = newData[xx][yy];
 								int matchIdx = -1;
-								for(int kk=0;kk<BIOMES.length;kk++) {
-									if(v == BIOMES[kk]) matchIdx = kk;
+								for(int kk=0;kk<ALL_BIOMES.length;kk++) {
+									if(v == ALL_BIOMES[kk]) matchIdx = kk;
 								}
 								if(matchIdx >= 0) {
-									int match = BIOMES[matchIdx];
+									int match = ALL_BIOMES[matchIdx];
 									if(!map.keySet().contains(match)) map.put(match, 1);
 									else map.put(match, map.get(match) + 1);
 								}

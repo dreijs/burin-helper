@@ -10,7 +10,7 @@ import java.util.TreeSet;
 
 public class DataFileCreator {
 	
-	private String INPUT_DIR = "C:/Users/Admin/Documents/Unreal Projects/VectorMapTest/Content/Data/";
+	private String INPUT_DIR = "C:/Users/Admin/Documents/Unreal Projects/Burin/Content/Data/";
 	
 	public String reformat(String s) {
 		String result = "";

@@ -6,11 +6,9 @@ import java.util.Map;
 
 public class SoilMapCreator {
 	// https://upload.wikimedia.org/wikipedia/commons/e/e5/Global_soils_map_USDA.jpg
-	public static final String SOIL_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Soil.png";
-	public static final String SOIL_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\Soil_base.png";
-	public static final String SOIL_BASE2_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\Soil3.png";
-	public static final String SOIL_FINAL_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\Soil3_final.png";
-	public static final String SOIL_FINAL_RESCALED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\Soil3_final_rescaled.png";
+	public static final String SOIL_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Soil4.png";
+	public static final String SOIL_FINAL_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\soil.png";
+	public static final String SOIL_FINAL_RESCALED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\soil_rescaled.png";
 
 	// soil
 	public static final int alfisol = new Color(175, 206, 99).getRGB(); 
@@ -27,9 +25,10 @@ public class SoilMapCreator {
 	public static final int vertisol = new Color(80, 90, 150).getRGB(); 
 	public static final int rocky = new Color(209, 201, 194).getRGB(); 
 	public static final int shiftingSand = new Color(134, 125, 118).getRGB(); 
+	public static final int polarIce = new Color(198, 223, 255).getRGB(); 
 
-	public static final int[] SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol};
-	public static final int[] ALL_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand};
+	public static final int[] SPREADABLE_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand};
+	public static final int[] ALL_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand, polarIce};
 
 	final static int LEFT_OFFSET = 0;
 	final static int RIGHT_OFFSET = 7;
@@ -49,32 +48,8 @@ public class SoilMapCreator {
 		return (col1r - col2r) * (col1r - col2r) + (col1g - col2g) * (col1g - col2g) + (col1b - col2b) * (col1b - col2b);
 	}
 
-	public void createSoilBaseMap() {
-		int d = 50;
-
-		int[][] soilData = FileOperator.readImage(SOIL_MAP_FILENAME);
-
-		int[][] baseData = new int[soilData.length - LEFT_OFFSET - RIGHT_OFFSET][];
-		for (int x = LEFT_OFFSET; x < soilData.length - RIGHT_OFFSET; x++) {
-			baseData[x - LEFT_OFFSET] = new int[soilData[x].length - TOP_OFFSET - BOTTOM_OFFSET];
-			for (int y = TOP_OFFSET; y < soilData[x].length - BOTTOM_OFFSET; y++) {
-				boolean match = false;
-				for(int k=0;k<SOILS.length;k++) {
-					if(colDist(soilData[x][y], SOILS[k]) < d) baseData[x - LEFT_OFFSET][y - TOP_OFFSET] = SOILS[k];
-					match = true;
-				}
-				if(colDist(soilData[x][y], rocky) < 1) {baseData[x - LEFT_OFFSET][y - TOP_OFFSET] = rocky; match = true;}
-				if(colDist(soilData[x][y], shiftingSand) < 1) {baseData[x - LEFT_OFFSET][y - TOP_OFFSET] = shiftingSand; match = true;}
-				if(!match) baseData[x][y] = 0;
-			}	
-		}
-
-		FileOperator.writeImage(baseData, SOIL_BASE_MAP_FILENAME);
-		System.out.println("done");
-	}
-
 	public void createExtendedSoilMap() {
-		int[][] baseData = FileOperator.readImage(SOIL_BASE2_MAP_FILENAME);
+		int[][] baseData = FileOperator.readImage(SOIL_BASE_MAP_FILENAME);
 		int[][] newData = new int[baseData.length][];
 
 		int[][] nbs = {{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}};
@@ -109,11 +84,11 @@ public class SoilMapCreator {
 							if(xx >= 0 && xx < newData.length && yy >= 0 && yy < newData[0].length) {
 								int v = newData[xx][yy];
 								int matchIdx = -1;
-								for(int kk=0;kk<ALL_SOILS.length;kk++) {
-									if(v == ALL_SOILS[kk]) matchIdx = kk;
+								for(int kk=0;kk<SPREADABLE_SOILS.length;kk++) {
+									if(v == SPREADABLE_SOILS[kk]) matchIdx = kk;
 								}
 								if(matchIdx >= 0) {
-									int match = ALL_SOILS[matchIdx];
+									int match = SPREADABLE_SOILS[matchIdx];
 									if(!map.keySet().contains(match)) map.put(match, 1);
 									else map.put(match, map.get(match) + 1);
 								}
@@ -122,15 +97,35 @@ public class SoilMapCreator {
 
 						int max = 0;
 						int argMax = 0;
+						int nMax = 0;
 						for(int key : map.keySet()) {
 							if(map.get(key) > max) {
 								max = map.get(key);
 								argMax = key;
+								nMax = 1;
+							} else if(map.get(key) == max) {
+								nMax++;
 							}
 						}
 						if(max > 0) {
-							tempNewData[x][y] = argMax;
-							changed++;
+							if(nMax == 1) {
+								if(max >= 4 || Math.random() <= (1./(4-max))) {
+									tempNewData[x][y] = argMax;
+									changed++;
+								} else tempNewData[x][y] = 0xFFFFFFFF;
+							} else {
+								int ii=0;
+								for(int key : map.keySet()) {
+									if(map.get(key) == max) {
+										if(Math.random() <= 1./(nMax - ii)) {
+											tempNewData[x][y] = key;
+											changed++;
+											break;
+										}
+										ii++;
+									}
+								}
+							}
 						} else tempNewData[x][y] = 0xFFFFFFFF;
 					} else {
 						tempNewData[x][y] = newData[x][y];
@@ -165,13 +160,26 @@ public class SoilMapCreator {
 				newData[x][y] = 0xFFFFFFFF;
 			}
 		}
-
+		
 		for (int x = 0; x < baseData.length; x++) {
 			for (int y = 0; y < baseData[x].length; y++) {
 				int v = baseData[x][y];
+				boolean isBiome = false;
 				for(int kk=0;kk<ALL_SOILS.length;kk++) {
 					if(v == ALL_SOILS[kk]) {
-						newData[x * wTgt / wOri][y * hTgt / hOri] = v;
+						isBiome = true;
+					}
+				}
+				if(isBiome) {
+					newData[x * wTgt / wOri][y * hTgt / hOri] = v;
+					if(x > 0 && x <baseData.length-1 && y > 0 && y < baseData[x].length - 1) {
+						if(baseData[x-1][y] == v && baseData[x+1][y] == v && baseData[x][y-1] == v && baseData[x][y+1] == v) {
+							for(int xx = x * wTgt / wOri; xx < (x+1) * wTgt / wOri; xx++) {
+								for(int yy = y * hTgt / hOri; yy < (y+1) * hTgt / hOri; yy++) {
+									newData[xx][yy] = v;
+								}
+							}
+						}
 					}
 				}
 			}
@@ -229,7 +237,6 @@ public class SoilMapCreator {
 	}
 
 	public static void main(String[] args) {
-		//		new SoilMapCreator().createSoilBaseMap();
 		new SoilMapCreator().createExtendedSoilMap();
 		new SoilMapCreator().rescaleSoilMap();
 	}
