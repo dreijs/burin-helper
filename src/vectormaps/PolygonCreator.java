@@ -31,6 +31,7 @@ public class PolygonCreator {
 	public static final String POLYGONS_BASE_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_base.txt";
 	public static final String POLYGONS_PRUNED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_pruned.txt";
 	public static final String POLYGONS_ORDERED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_ordered.txt";
+	public static final String POLYGONS_FILTERED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_filtered.txt";
 	public static final String POLYGONS_FINAL_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_final.txt";
 
 	public static final String REGIONS_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\regions.png";
@@ -40,7 +41,7 @@ public class PolygonCreator {
 
 	void visualizeRegion(int[][] regions, String filename) {
 		int[][] regionC = new int[regions.length][];
-		int[] colors = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, 0xFFFF00FF, 0xFF00FFFF, 0xFFBB0000, 0xFF00BB00, 0xFF0000BB, 0xFFBBBB00, 0xFFBB00BB, 0xFF00BBBB, 0xFFFF4444, 0xFF44FF44, 0xFF4444FF, 0xFFFFFF44, 0xFFFF44FF, 0xFF44FFFF, 0xFFFF8888, 0xFF88FF88, 0xFF8888FF, 0xFFFFFF88, 0xFFFF88FF, 0xFF88FFFF, 0xFFFFFFFF, 0xFFBBBBBB, 0xFF888888, 0xFF444444, 0xFF000000};
+		int[] colors = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, 0xFFFF00FF, 0xFF00FFFF, 0xFF0000CC, 0xFF00CC00, 0xFF0000CC, 0xFF00CC00, 0xFFCC0000, 0xFFCC0000, 0xFF000099, 0xFF009900, 0xFF000099, 0xFF009900, 0xFF990000, 0xFF990000, 0xFF000066, 0xFF006600, 0xFF000066, 0xFF006600, 0xFF660000, 0xFF660000, 0xFF000033, 0xFF003300, 0xFF000033, 0xFF003300, 0xFF330000, 0xFF330000, 0xFFCCCCCC, 0xFF999999, 0xFF666666, 0xFF333333, 0xFF336699, 0xFF339966, 0xFF663399, 0xFF669933, 0xFF993366, 0xFF996633, 0xFFCC9966, 0xFFCC6699, 0xFF99CC66, 0xFF9966CC, 0xFF66CC99, 0xFF6699CC, 0xFF99CCFF, 0xFF99FFCC, 0xFFCC99FF, 0xFFCCFF99, 0xFFFF99CC, 0xFFFFCC99};
 		for (int x = 0; x < regions.length; x++) {
 			regionC[x] = new int[regions[x].length];
 			for (int y = 0; y < regions[x].length; y++) {
@@ -55,41 +56,7 @@ public class PolygonCreator {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
 			for(int i=0;i<regions.size();i++) {
 				Region region = regions.get(i);
-				writer.write("--- region "+i); 
-				if(region.drawOrder >= 0) writer.write(", #"+region.drawOrder); 
-				else writer.write(", ##"); 
-				writer.write(", "+region.colorData);
-				if(region.triangleDrawOrder.length > 0) {
-					writer.write(", "); 
-					for(int j=0;j<region.triangleDrawOrder.length;j++) {
-						if(getBit(region.triangleDrawOrder,j)) writer.write("1");
-						else writer.write("0");
-					}
-				}
-				if(region.outerNeighbors.size() > 0) {
-					writer.write(", "); 
-					for(int j=0;j<region.outerNeighbors.size();j++) {
-						if(j>0) writer.write(","); 
-						writer.write(""+region.outerNeighbors.get(j));
-					}
-				}
-				if(region.innerNeighbors.size() > 0) {
-					writer.write(", "); 
-					for(int j=0;j<region.innerNeighbors.size();j++) {
-						if(j>0) writer.write(","); 
-						writer.write(""+region.innerNeighbors.get(j));
-					}
-				}
-				writer.write(" ---\n"); 
-				List<Point> polygon = region.polygon;
-				List<Integer> idxs = region.opposingRegions;
-				for(int k=0;k<polygon.size();k++) {
-					Point p = polygon.get(k);
-					int idx = -2;
-					if(k < idxs.size()) idx = idxs.get(k);
-					writer.write("("+p.x+","+p.y+","+idx+")");
-					if(k<polygon.size()-1) writer.write(", ");
-				}
+				writer.write(region.toString());
 				if(i<regions.size()-1) writer.newLine();   // Write a new line character (platform-independent)
 			}
 			writer.flush();
@@ -181,18 +148,21 @@ public class PolygonCreator {
 		for(Region region : regions) {
 			List<Point> polygon = region.polygon;
 			List<Integer> idxs = region.opposingRegions;
+			
+			int n = polygon.size();
 
-			for(int j=polygon.size()-1;j>=2;j--) {
-				Point p0 = polygon.get(j);
-				Point p1 = polygon.get(j-1);
-				Point p2 = polygon.get(j-2);
+			for(int j=n-1;j>=0;j--) {
+				n = polygon.size();
+				Point p0 = polygon.get(Math.floorMod(j, n));
+				Point p1 = polygon.get(Math.floorMod(j-1, n));
+				Point p2 = polygon.get(Math.floorMod(j-2, n));
 
-				int i1 = idxs.get(j-1);
-				int i2 = idxs.get(j-2);
+				int i1 = idxs.get(Math.floorMod(j-1, n));
+				int i2 = idxs.get(Math.floorMod(j-2, n));
 
 				if(p0.x == p1.x && p0.x == p2.x && i1 == i2 || p0.y == p1.y && p0.y == p2.y && i1 == i2) {
-					polygon.remove(j-1);
-					idxs.remove(j-1);
+					polygon.remove(Math.floorMod(j-1, n));
+					idxs.remove(Math.floorMod(j-1, n));
 				}
 			}
 		}
@@ -204,9 +174,8 @@ public class PolygonCreator {
 		for(int i=regions.size()-1;i>=0;i--) {
 			Region region = regions.get(i);
 
-			//			System.out.println(Geometry.calculatePolygonAreaGlobe(region.polygon, w, h)/minSize);
-
-			if(Geometry.calculatePolygonAreaGlobe(region.polygon, w, h) <= minSize) {
+			if(region.polygon.size() > 0 && Geometry.calculatePolygonAreaGlobe(region.polygon, w, h) <= minSize) {
+				//				System.out.println(Geometry.calculatePolygonAreaGlobe(region.polygon, w, h)+" vs "+minSize+" "+region.outerNeighbors.size());
 				if(region.outerNeighbors.size() == 1) {
 					boolean canRemove = regions.get(region.outerNeighbors.get(0)).canRemoveRegion(i);
 					if(canRemove) {
@@ -332,44 +301,29 @@ public class PolygonCreator {
 		for(int i=regions.size()-1;i>=0;i--) {
 			Region region = regions.get(i);
 
-			//			if(region.regionIdx == 77483) {
-			//				for(int j=0;j<region.polygon.size();j++) {
-			//					if(j>0) System.out.print(",");
-			//					System.out.print(region.polygon.get(j).x);
-			//				}
-			//				System.out.println();
-			//				for(int j=0;j<region.polygon.size();j++) {
-			//					if(j>0) System.out.print(",");
-			//					System.out.print(region.polygon.get(j).y);
-			//				}
-			//				System.out.println();
-			//			}
-
-			if(region.regionIdx == 15211) {
-				printShape(region.polygon);
-			}
-
 			if (region.polygon.size() > 0) {
 				int prevSize = 0;
 				while(prevSize != region.polygon.size()) {
 					prevSize = region.polygon.size();
 
+					int n = region.opposingRegions.size();
+//					if(i == 22448) System.out.println(region.polygon);
+
 					List<Integer> segments = new ArrayList<Integer>();
-					for(int j=0;j<region.opposingRegions.size();j++) {
-						int jj = (j+1) % region.opposingRegions.size();
-						if(region.opposingRegions.get(j) != region.opposingRegions.get(jj)) {
-							segments.add(jj);
+					for(int j=0;j<n;j++) {
+						if(!region.opposingRegions.get(j).equals(region.opposingRegions.get((j+1)%n))) {
+							segments.add(j+1);
 						}
 					}
 
-					if(region.regionIdx == 15211) System.out.println("Region "+region.regionIdx+": "+region.polygon.size()+" "+segments.size());
+//					if(i == 22448) System.out.println("***"+segments);
 
 					if(segments.size() == 0) {
-						simplifyRecursive(regions, i, 0, region.polygon.size() - 1, delta, prevSize);
+						simplifyRecursive(regions, i, 0, n - 1, delta, prevSize);
 					} else {
-						for(int j=0;j<segments.size()-1;j++) {
-							int jj = j+1;
-							simplifyRecursive(regions, i, segments.get(j), segments.get(jj) - 1, delta, prevSize);
+						for(int j=0;j<segments.size();j++) {
+							int jj = (j+1)%segments.size();
+							simplifyRecursive(regions, i, segments.get(j)%n, segments.get(jj) - 1, delta, prevSize);
 						}
 					}
 				}
@@ -380,13 +334,23 @@ public class PolygonCreator {
 	private static void simplifyRecursive(List<Region> regions, int idx, int start, int end, double epsilon, int prevSize) {
 		Region region = regions.get(idx);
 		int n = region.polygon.size();
-		if(n!= prevSize) return;
+
+		if(n != prevSize) return;
+
+		Point pStart = region.polygon.get(start);
+		Point pEnd = region.polygon.get((end+1)%n);
+
+		if(end >= start && end - start < 1) return;
+		if(start > end && end - start + n < 1) return;
+
+		//		System.out.println(start+", "+end+" "+n);
 
 		double dMax = -1;
 		int index = 0;
 
-		for (int i = start+1; i < end; i++) {
-			double distance = Geometry.perpendicularDistance(region.polygon.get(i), region.polygon.get(start), region.polygon.get(end));
+		boolean valid = true;
+		for (int i = (start+1)%n; i != end; i=(i+1)%n) {
+			double distance = Geometry.perpendicularDistance(region.polygon.get(i), pStart, pEnd);
 			if (distance > dMax) {
 				dMax = distance;
 				index = i;
@@ -394,42 +358,63 @@ public class PolygonCreator {
 		}
 
 		if(dMax == -1) return;
+		if(dMax > epsilon) valid = false;
 
-		if(region.regionIdx == 15211) System.out.println(start+" "+end+" "+index+" "+dMax);
+		// check if making the cut would not lead to intersections in this polygon
+		int oppRegion = region.opposingRegions.get(start);
+		if(valid) {
+			valid = region.canSimplifySegment(pStart, pEnd, oppRegion);
+			//			System.out.println("valid 1: "+valid);
+		}
+		if(valid && oppRegion >= 0) {
+			valid = regions.get(oppRegion).canSimplifySegment(pStart, pEnd, idx);
+			//			if(valid) System.out.println("valid 2: "+valid);
+		}
 
-		boolean intersect = false;
-		for (int i = end % n; i != start; i = (i+1) % n) {
-			int j = (i + 1) % n;
-			if(Geometry.doSegmentsIntersect(region.polygon.get(i), region.polygon.get(j), region.polygon.get(start), region.polygon.get(end))) {
-				intersect = true;
-				break;
+		// don't make cuts that would remove too much of a region
+		if(valid) {
+			double totSize = Geometry.calculatePolygonArea(region.polygon);
+			double cutSize = 0;
+			for (int i = (start+1)%n; i != end; i = (i+1)%n) {
+				List<Point> triangle = new ArrayList<Point>();
+				triangle.add(region.polygon.get(i>0?i-1:n-1)); triangle.add(region.polygon.get(i)); triangle.add(region.polygon.get((i+1)%n));
+				cutSize += Geometry.calculatePolygonArea(triangle);
+			}				
+			if(cutSize / totSize > 0.05) {
+				valid = false;
+			}
+			if(oppRegion >= 0) {
+//				System.out.println(idx+" "+oppRegion+" "+pStart+" "+pEnd);
+//				System.out.println(regions.get(oppRegion));
+				cutSize = 0;
+				totSize = Geometry.calculatePolygonArea(regions.get(oppRegion).polygon);
+				for (int i = (start+1)%n; i != end; i = (i+1)%n) {
+					List<Point> triangle = new ArrayList<Point>();
+					triangle.add(region.polygon.get(i>0?i-1:n-1)); triangle.add(region.polygon.get(i)); triangle.add(region.polygon.get((i+1)%n));
+					cutSize += Geometry.calculatePolygonArea(triangle);
+				}					
+				if(cutSize / totSize > 0.05) {
+					valid = false;
+				}
 			}
 		}
 
-		if(region.regionIdx == 15211) System.out.println(intersect);
-
-		if (intersect || dMax > epsilon) {
+		if (!valid) {
 			simplifyRecursive(regions, idx, start, index, epsilon, prevSize);
 			simplifyRecursive(regions, idx, index, end, epsilon, prevSize);
 		} else {
-			for (int i = end-1; i > start; i--) {
-				// don't make cuts that would remove too much of a region
-				double totSize = Geometry.calculatePolygonArea(region.polygon);
-				List<Point> triangle = new ArrayList<Point>();
-				triangle.add(region.polygon.get(i-1)); triangle.add(region.polygon.get(i)); triangle.add(region.polygon.get(i+1));
-				double cutSize = Geometry.calculatePolygonArea(triangle);
-				if(cutSize / totSize < 0.33) {
-					int j = region.opposingRegions.get(i);
-					int z = 1;
-					if(j >= 0) {
-						z = regions.get(j).removeAt(region.polygon.get(i-1), region.polygon.get(i), region.polygon.get(i+1));
-					}
-					if(z > 0) {
-						region.polygon.remove(i);
-						region.opposingRegions.remove(i);
-					}
-				}
-			}
+//			if(oppRegion == 22448) {
+//				System.out.println(idx+" "+oppRegion+" "+start+" "+end+" "+pStart+" "+pEnd);
+//				System.out.println("+"+regions.get(idx));
+//				System.out.println("*"+regions.get(oppRegion));
+//			}
+			region.removeSegment(pStart, pEnd, oppRegion);
+			if(oppRegion >= 0) regions.get(oppRegion).removeSegment(pStart, pEnd, idx);
+			
+//			if(idx == 22448) System.out.println("+"+regions.get(idx));
+//			if(oppRegion == 22448) {
+//				System.out.println("*"+regions.get(oppRegion));
+//			}
 		}
 	}
 
@@ -469,12 +454,6 @@ public class PolygonCreator {
 		a[(int) (i/8)] = bb;
 	}
 
-	boolean getBit(byte[] a, long i) {
-		byte b = a[(int) (i/8)];
-		int p = (int) (i%8);
-		return ((b >> p) & 1) == 1;
-	}
-
 	byte[] extend(byte[] a) {
 		byte[] b = new byte[Math.min(a.length * 2, 1073741824)];
 		for(int i=0;i<a.length;i++) {
@@ -499,6 +478,7 @@ public class PolygonCreator {
 
 				if(Geometry.doSegmentsIntersect(polygon.get(k), polygon.get(kk), polygon.get(k2), polygon.get(kk2))) {
 					System.out.println("AAA! "+regId);
+					System.out.println(polygon);
 					printShape(polygon);
 				}
 			}
@@ -551,7 +531,7 @@ public class PolygonCreator {
 
 	void determineTriangleDrawOrders(List<Region> regions) {
 		for(int i=regions.size()-1;i>=0;i--) {
-			if((i % 1000) == 0) System.out.println("region "+i+"/"+regions.size());
+			if((i % 10000) == 0) System.out.println("region "+i+"/"+regions.size());
 			Region region = regions.get(i);
 			if(region.polygon.size() > 0) {
 				List<Point> polygon = region.polygon;
@@ -592,7 +572,7 @@ public class PolygonCreator {
 									List<Point> l = new ArrayList<Point>();
 									l.add(p1); l.add(p2); l.add(p3);
 
-									if(getBit(region.triangleDrawOrder, z)) {
+									if(region.getBit(region.triangleDrawOrder, z)) {
 										//										System.out.println(Geometry.calculatePolygonArea(l) );
 										//										if(Geometry.calculatePolygonArea(l) > 0) {
 										int p1x = p1.x * 4096 / width;
@@ -1063,7 +1043,7 @@ public class PolygonCreator {
 	}
 
 	void processMap(int[][] mapData) {
-		initAndPruneMap(mapData);
+				initAndPruneMap(mapData);
 
 		List<Region> regions = loadConnectedPolygons();
 
@@ -1073,19 +1053,17 @@ public class PolygonCreator {
 
 		printToFile(regions, POLYGONS_ORDERED_FILENAME);
 
-		filterSmallRegions(regions, 2000, mapData.length, mapData[0].length);
-		System.out.println("done: filtered small regions");
+//		for(int i=0;i<3;i++) {
+//			filterSmallRegions(regions, 20000, mapData.length, mapData[0].length);
+//			System.out.println("done: filtered small regions");
+//			System.out.println(getTotalnumPoints(regions));
+//		}
+
+		simplifyDouglasPeucker(regions, 20);
+		System.out.println("done: simplify using Douglas-Peucker");
 		System.out.println(getTotalnumPoints(regions));
 
-		//		simplifyVisvalingamWhyatt(regions, 100000000000., mapData.length, mapData[0].length);
-		//		System.out.println("done: simplify using Visvalingam-Whyatt");
-		//		System.out.println(getTotalnumPoints(regions));
-
-		//		simplifyDouglasPeucker(regions, 10);
-		//		System.out.println("done: simplify using Douglas-Peucker");
-		//		System.out.println(getTotalnumPoints(regions));
-		//
-		//		printToFile(regions, System.getProperty("user.dir")+"\\output\\elevation_map_samples\\polygons_filtered.txt");
+		printToFile(regions, POLYGONS_FILTERED_FILENAME);
 
 		determineTriangleDrawOrders(regions);
 		System.out.println("done: determine triangle draw order");

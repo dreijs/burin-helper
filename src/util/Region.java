@@ -96,6 +96,98 @@ public class Region {
 		//		System.out.println("clear region "+this.regionIdx);
 	}
 
+	public int[] getSegmentIndices(Point p1, Point p2, int oppRegion) {
+		// check if p1 comes first
+		int idx1 = -1;
+		int idx2 = -1;
+		for(int i=0;i<polygon.size();i++) {
+			if(p1.equals(polygon.get(i))) {idx1 = i;}
+			if(idx1 >= 0 && p2.equals(polygon.get(i))) {idx2 = i; break;}
+			if(idx2 < 0 && !opposingRegions.get(i).equals(oppRegion)) idx1 = -1;
+		}
+		if(idx1 >= 0 && idx2 < 0) {
+			for(int i=0;i<polygon.size();i++) {
+				if(idx1 >= 0 && p2.equals(polygon.get(i))) {idx2 = i; break;}
+				if(idx2 < 0 && !opposingRegions.get(i).equals(oppRegion)) {idx1 = -1; break;}
+			}
+		}
+
+		if(idx2 >= 0) {
+			return new int[] {idx1, idx2};
+		}
+
+		idx1 = -1;
+		for(int i=0;i<polygon.size();i++) {
+			if(p2.equals(polygon.get(i))) {idx1 = i;}
+			if(idx1 >= 0 && p1.equals(polygon.get(i))) {idx2 = i; break;}
+			if(idx2 < 0 && !opposingRegions.get(i).equals(oppRegion)) idx1 = -1;
+		}
+		if(idx1 >= 0 && idx2 < 0) {
+			for(int i=0;i<polygon.size();i++) {
+				if(idx1 >= 0 && p1.equals(polygon.get(i))) {idx2 = i;  break;}
+				if(idx2 < 0 && !opposingRegions.get(i).equals(oppRegion)) {idx1 = -1; break;}
+			}
+		}
+
+		if(idx2 >= 0) {
+			return new int[] {idx1, idx2};
+		}
+
+		// segment not found: probably internal
+		return null;
+	}
+
+	public boolean canSimplifySegment(Point p1, Point p2, int oppRegion) {
+		int[] indices = getSegmentIndices(p1, p2, oppRegion);
+		if(indices == null) return true;
+
+		int n = polygon.size();
+		for (int i = indices[1] % n; i != indices[0]; i = (i+1) % n) {
+			int j = (i + 1) % n;
+			if(Geometry.doSegmentsIntersect(polygon.get(i), polygon.get(j), polygon.get(indices[0]), polygon.get(indices[1]))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public void removeSegment(Point p1, Point p2, int oppRegion) {
+		boolean print = (regionIdx == 27467 && oppRegion == 27464) || (regionIdx == 27464 && oppRegion == 27467);
+		
+		if(print) System.out.println(this);
+		if(print) System.out.println(regionIdx+": "+p1+" to "+p2 +" ("+oppRegion+")");
+		
+		int[] indices = getSegmentIndices(p1, p2, oppRegion);
+		if(indices == null) return;
+		
+		if(print) System.out.println(regionIdx+": "+indices[0]+" to "+indices[1] +" ("+oppRegion+")");
+
+		if(indices[1] > indices[0]) {
+			for (int i = indices[1]-1; i != indices[0];i--) {
+				if(print) System.out.println(regionIdx+" !remove "+polygon.get(i)+" "+opposingRegions.get(i));
+				polygon.remove(i); 
+				opposingRegions.remove(i); 
+			}
+		} else {
+			for (int i = polygon.size()-1; i != indices[0];i--) {
+				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
+				polygon.remove(i); 
+				opposingRegions.remove(i); 
+			}
+			for (int i = indices[1]-1; i >= 0;i--) {
+				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
+				polygon.remove(i); 
+				opposingRegions.remove(i); 
+			}
+		}
+
+		//		for (int i = indices[1]>0?indices[1]-1:polygon.size()-1; i != indices[0]; i=i>0?i-1:polygon.size()-1) {
+		//			System.out.println(i+" "+polygon.size());
+		//			polygon.remove(i); 
+		//			opposingRegions.remove(i); 
+		//		}
+	}
+
 	public int removeAt(Point p1, Point p2, Point p3) {
 		int removed = 0;
 		for(int i=polygon.size()-1;i>=0;i--) {
@@ -112,13 +204,56 @@ public class Region {
 			}
 		}
 		if(removed == 1) {
-//			System.out.println(this.regionIdx+" "+p2);
-//			int a = 1/0;
+			//			System.out.println(this.regionIdx+" "+p2);
+			//			int a = 1/0;
 		}
 		return removed;
 	}
 
 	public int getTotalNumPoints() {
 		return this.polygon.size();
+	}
+
+	public boolean getBit(byte[] a, long i) {
+		byte b = a[(int) (i/8)];
+		int p = (int) (i%8);
+		return ((b >> p) & 1) == 1;
+	}
+
+	public String toString() {
+		String s ="--- region "+regionIdx; 
+		if(drawOrder >= 0) s += (", #"+drawOrder); 
+		else s += (", ##"); 
+		s += (", "+colorData);
+		if(triangleDrawOrder.length > 0) {
+			s += (", "); 
+			for(int j=0;j<triangleDrawOrder.length;j++) {
+				if(getBit(triangleDrawOrder,j)) s += ("1");
+				else s += ("0");
+			}
+		}
+		if(outerNeighbors.size() > 0) {
+			s += (", "); 
+			for(int j=0;j<outerNeighbors.size();j++) {
+				if(j>0) s += (","); 
+				s += (""+outerNeighbors.get(j));
+			}
+		}
+		if(innerNeighbors.size() > 0) {
+			s += (", "); 
+			for(int j=0;j<innerNeighbors.size();j++) {
+				if(j>0) s += (","); 
+				s += (""+innerNeighbors.get(j));
+			}
+		}
+		s += (" ---\n"); 
+		for(int k=0;k<polygon.size();k++) {
+			Point p = polygon.get(k);
+			int idx = -2;
+			if(k < opposingRegions.size()) idx = opposingRegions.get(k);
+			s += ("("+p.x+","+p.y+","+idx+")");
+			if(k<polygon.size()-1) s += (", ");
+		}
+		return s;
 	}
 }

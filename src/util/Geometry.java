@@ -89,48 +89,8 @@ public class Geometry {
             return true;
         }
 
-//        // Special Cases (collinear segments)
-//        // p1, q1 and p2 are collinear and p2 lies on segment p1q1
-//        if (o1 == 0 && onSegment(p1, p2, q1)) return true;
-//
-//        // p1, q1 and q2 are collinear and q2 lies on segment p1q1
-//        if (o2 == 0 && onSegment(p1, q2, q1)) return true;
-//
-//        // p2, q2 and p1 are collinear and p1 lies on segment p2q2
-//        if (o3 == 0 && onSegment(p2, p1, q2)) return true;
-//
-//        // p2, q2 and q1 are collinear and q1 lies on segment p2q2
-//        if (o4 == 0 && onSegment(p2, q1, q2)) return true;
-
         return false; // Doesn't fall in any of the above cases
     }
-	
-//	public static boolean doSegmentsIntersect(Point p1, Point q1, Point p2, Point q2) {
-//        // Line Segment 1: p1 + t * (q1 - p1)
-//        // Line Segment 2: p2 + u * (q2 - p2)
-//
-//        double dx1 = q1.x - p1.x;
-//        double dy1 = q1.y - p1.y;
-//        double dx2 = q2.x - p2.x;
-//        double dy2 = q2.y - p2.y;
-//
-//        double denominator = dx1 * dy2 - dy1 * dx2;
-//
-//        // If denominator is zero, lines are parallel or collinear.
-//        if (denominator == 0) {
-//            // Check for collinear overlap
-//            // This is a simplified check and might not cover all edge cases perfectly without orientation
-//            // For a robust collinear check, you'd need to project and check for overlap on the axis.
-//            // For now, assume no intersection if strictly parallel or not overlapping if collinear.
-//            return false;
-//        }
-//
-//        double t = ((p1.y - p2.y) * dx2 - (p1.x - p2.x) * dy2) / denominator;
-//        double u = ((p1.y - p2.y) * dx1 - (p1.x - p2.x) * dy1) / denominator;
-//
-//        // Check if the intersection point lies within both segments
-//        return (t > 0 && t < 1 && u > 0 && u < 1);
-//    }
 
 
 	public static double perpendicularDistance(Point point, Point lineStart, Point lineEnd) {

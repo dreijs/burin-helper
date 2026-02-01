@@ -10,11 +10,10 @@ public class FeatureMapCreator {
 	public static final String CLIFFS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\cliff_map.png";
 	public static final String FEATURES_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\features_map.png";
 
-	public static final int HILL_COLOR = new Color(255, 192, 0).getRGB(); 
-	public static final int MOUNTAIN_COLOR = new Color(255, 128, 0).getRGB(); 
-	public static final int CLIFF_COLOR = new Color(255, 224, 0).getRGB(); 
-	public static final int CLIFF_NORTH_COLOR = new Color(255, 0, 0).getRGB(); 
-	public static final int CLIFF_SOUTH_COLOR = new Color(192, 0, 0).getRGB(); 
+	public static final int HILL_COLOR = new Color(255, 128, 0).getRGB(); 
+	public static final int MOUNTAIN_COLOR = new Color(255, 0, 0).getRGB(); 
+	public static final int CLIFF_NORTH_COLOR = new Color(192, 0, 0).getRGB(); 
+	public static final int CLIFF_SOUTH_COLOR = new Color(128, 0, 0).getRGB(); 
 
 	public int[][] addHillData(int[][] baseData, int[][] elevationData, int d, int w, int m) {
 		int[][] hillData = new int[baseData.length][];
@@ -30,7 +29,7 @@ public class FeatureMapCreator {
 					for(int dy = -w; dy <= w; dy++) {
 						int xx = x + dx;
 						int yy = y + dy;
-						if(dx*dx + dy*dy <= w) {
+						if(Math.sqrt(dx*dx + dy*dy) <= w) {
 							if(xx >= 0 && xx < hillData.length && yy >= 0 && yy < hillData[0].length) {
 								int val = Colors.blueVal(elevationData[xx][yy]);
 								minElev = Math.min(minElev, val);
@@ -40,7 +39,7 @@ public class FeatureMapCreator {
 					}
 				}
 
-				if(maxElev - minElev > d && maxElev > m) hillData[x][y] = HILL_COLOR; 
+				if(maxElev - minElev > d && Colors.blueVal(elevationData[x][y]) > 0 && maxElev > m) hillData[x][y] = HILL_COLOR; 
 			}
 		}
 
@@ -70,7 +69,7 @@ public class FeatureMapCreator {
 					for(int dy = -w; dy <= w; dy++) {
 						int xx = x + dx;
 						int yy = y + dy;
-						if(dx*dx + dy*dy <= w) {
+						if(Math.sqrt(dx*dx + dy*dy) <= w) {
 							if(xx >= 0 && xx < mountainData.length && yy >= 0 && yy < mountainData[0].length) {
 								int val = Colors.blueVal(elevationData[xx][yy]);
 								minElev = Math.min(minElev, val);
@@ -80,7 +79,7 @@ public class FeatureMapCreator {
 					}
 				}
 
-				if(maxElev - minElev > d && maxElev > m) mountainData[x][y] = MOUNTAIN_COLOR; 
+				if(maxElev - minElev > d && Colors.blueVal(elevationData[x][y]) > 0 && maxElev > m) mountainData[x][y] = MOUNTAIN_COLOR; 
 			}
 		}
 
@@ -131,7 +130,7 @@ public class FeatureMapCreator {
 		int[][] featureData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
 		System.out.println("done reading");
 
-		featureData = addHillData(featureData, elevationData, 16, 8, 80);
+		featureData = addHillData(featureData, elevationData, 20, 6, 80);
 		System.out.println("added hill data");
 		featureData = addMountainData(featureData, elevationData, 32, 3, 96, 6);
 		System.out.println("added mountain data");
@@ -152,7 +151,7 @@ public class FeatureMapCreator {
 					int xx = x + dx;
 					if(xx >= 0 && xx < elevationData.length) {
 						for(int dy = -((int) Math.ceil(ww)); dy<= ww;dy++) {
-							if(dx*dx + dy*dy <= ww) {
+							if(Math.sqrt(dx*dx + dy*dy) <= ww) {
 								int yy = y+dy;
 								if(yy >= 0 && yy < elevationData[xx].length) {
 									int val = Colors.blueVal(elevationData[xx][yy]);
@@ -167,10 +166,9 @@ public class FeatureMapCreator {
 
 				int val = Colors.blueVal(elevationData[x][y]);
 
-				if(minElv > 0 && maxElv - minElv > d && val - minElv > dd && val > m) {
+				if(Colors.blueVal(elevationData[x][y]) > 0 && maxElv - minElv > d && val - minElv > dd && val > m) {
 					if(y > 0 && Colors.blueVal(elevationData[x][y]) > Colors.blueVal(elevationData[x][y-1])) cliffData[x][y] = CLIFF_NORTH_COLOR;
-					else if(y < baseData[0].length && Colors.blueVal(elevationData[x][y]) > Colors.blueVal(elevationData[x][y+1])) cliffData[x][y] = CLIFF_SOUTH_COLOR;
-					else cliffData[x][y] = CLIFF_COLOR;
+					else cliffData[x][y] = CLIFF_SOUTH_COLOR;
 				}
 				else cliffData[x][y] = baseData[x][y];
 			}
