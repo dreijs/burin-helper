@@ -2,6 +2,7 @@ package vectormaps;
 
 import java.awt.Color;
 import util.Colors;
+import util.FileOperator;
 
 public class FeatureMapCreator {
 	public static final String SAMPLES_OUTPUT_FOLDER = System.getProperty("user.dir")+"\\output\\map\\samples\\mountain_samples\\";

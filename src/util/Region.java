@@ -1,6 +1,7 @@
 package util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Region {
@@ -136,6 +137,59 @@ public class Region {
 		// segment not found: probably internal
 		return null;
 	}
+	
+	public int[] getSegmentIndices(Point[] points) {
+//		int r1 = 57219;
+//		int r2 = 57217;
+//		boolean print = (regionIdx == r1 || regionIdx == r2);
+//		if(print) System.out.println("*+*+* "+regionIdx+" "+Arrays.toString(points));
+		
+		// check if p1 comes first
+		int idx1 = -1;
+		int idx2 = -1;
+		Point p1 = points[0];
+		Point p2 = points[points.length-1];
+		int n = polygon.size();
+		for(int i=0;i<n;i++) {
+			if(points[0].equals(polygon.get(i))) {idx1 = i;}
+			if(idx1 >= 0 && p2.equals(polygon.get(i))) {idx2 = i; break;}
+			if(idx2 < 0 && (i-idx1 >= points.length || !polygon.get(i).equals(points[i-idx1]))) idx1 = -1;
+		}
+		if(idx1 >= 0 && idx2 < 0) {
+			for(int i=0;i<n;i++) {
+				if(idx1 >= 0 && p2.equals(polygon.get(i))) {idx2 = i; break;}
+				int nn = Math.floorMod(i-idx1, n);
+				if(idx2 < 0 && (nn >= points.length || !polygon.get(i).equals(points[nn]))) idx1 = -1;
+			}
+		}
+		
+//		if(print) System.out.println("final"+idx1+" "+idx2);
+
+		if(idx2 >= 0) {
+			return new int[] {idx1, idx2};
+		}
+
+		idx1 = -1;
+		for(int i=0;i<n;i++) {
+			if(p2.equals(polygon.get(i))) {idx1 = i;}
+			if(idx1 >= 0 && p1.equals(polygon.get(i))) {idx2 = i; break;}
+			if(idx2 < 0 && (i-idx1 >= points.length || !polygon.get(i).equals(points[i-idx1]))) idx1 = -1;
+		}
+		if(idx1 >= 0 && idx2 < 0) {
+			for(int i=0;i<n;i++) {
+				if(idx1 >= 0 && p1.equals(polygon.get(i))) {idx2 = i;  break;}
+				int nn = Math.floorMod(i-idx1, n);
+				if(idx2 < 0 && (nn >= points.length || !polygon.get(i).equals(points[nn]))) idx1 = -1;
+			}
+		}
+
+		if(idx2 >= 0) {
+			return new int[] {idx1, idx2};
+		}
+
+		// segment not found: probably internal
+		return null;
+	}
 
 	public boolean canSimplifySegment(Point p1, Point p2, int oppRegion) {
 		int[] indices = getSegmentIndices(p1, p2, oppRegion);
@@ -150,42 +204,57 @@ public class Region {
 		}
 		return true;
 	}
+	
+	public Point[] getSegmentPoints(int[] indices, int oppRegion) {
+		if(indices == null) return new Point[] {};
+		
+		List<Point> points = new ArrayList<Point>();
 
-	public void removeSegment(Point p1, Point p2, int oppRegion) {
-		boolean print = (regionIdx == 27467 && oppRegion == 27464) || (regionIdx == 27464 && oppRegion == 27467);
+		if(indices[1] > indices[0]) {
+			for (int i = indices[1]; i != indices[0]-1;i--) {
+				points.add(polygon.get(i)); 
+			}
+		} else {
+			for (int i = polygon.size()-1; i != indices[0]-1;i--) {
+				points.add(polygon.get(i)); 
+			}
+			for (int i = indices[1]; i >= 0;i--) {
+				points.add(polygon.get(i)); 
+			}
+		}
 		
-		if(print) System.out.println(this);
-		if(print) System.out.println(regionIdx+": "+p1+" to "+p2 +" ("+oppRegion+")");
+		return points.toArray(new Point[0]);
+	}
+
+	public void removeSegment(int[] indices, int oppRegion) {
+//		int r1 = 57219;
+//		int r2 = 57217;
+//		boolean print = (regionIdx == r1 && oppRegion == r2) || (regionIdx == r2 && oppRegion == r1);
+//		
+//		if(print) System.out.println(this);
 		
-		int[] indices = getSegmentIndices(p1, p2, oppRegion);
 		if(indices == null) return;
 		
-		if(print) System.out.println(regionIdx+": "+indices[0]+" to "+indices[1] +" ("+oppRegion+")");
+//		if(print) System.out.println(regionIdx+": "+indices[0]+" to "+indices[1] +" ("+oppRegion+")");
 
 		if(indices[1] > indices[0]) {
 			for (int i = indices[1]-1; i != indices[0];i--) {
-				if(print) System.out.println(regionIdx+" !remove "+polygon.get(i)+" "+opposingRegions.get(i));
+//				if(print) System.out.println(regionIdx+" !remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
 		} else {
 			for (int i = polygon.size()-1; i != indices[0];i--) {
-				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
+//				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
 			for (int i = indices[1]-1; i >= 0;i--) {
-				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
+//				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
 		}
-
-		//		for (int i = indices[1]>0?indices[1]-1:polygon.size()-1; i != indices[0]; i=i>0?i-1:polygon.size()-1) {
-		//			System.out.println(i+" "+polygon.size());
-		//			polygon.remove(i); 
-		//			opposingRegions.remove(i); 
-		//		}
 	}
 
 	public int removeAt(Point p1, Point p2, Point p3) {

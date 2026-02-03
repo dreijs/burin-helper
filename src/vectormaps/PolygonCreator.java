@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import util.Colors;
+import util.FileOperator;
 import util.Geometry;
 import util.Point;
 import util.Region;
@@ -28,11 +29,13 @@ class RegionResult {
 
 public class PolygonCreator {
 
-	public static final String POLYGONS_BASE_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_base.txt";
-	public static final String POLYGONS_PRUNED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_pruned.txt";
-	public static final String POLYGONS_ORDERED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_ordered.txt";
-	public static final String POLYGONS_FILTERED_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_filtered.txt";
-	public static final String POLYGONS_FINAL_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\polygons_final.txt";
+	public static final String OUTPUT_FOLDER_NAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\";
+
+	public static final String POLYGONS_BASE_FILENAME = OUTPUT_FOLDER_NAME + "polygons_base.txt";
+	public static final String POLYGONS_PRUNED_FILENAME = OUTPUT_FOLDER_NAME + "polygons_pruned.txt";
+	public static final String POLYGONS_ORDERED_FILENAME = OUTPUT_FOLDER_NAME + "polygons_ordered.txt";
+	public static final String POLYGONS_FILTERED_FILENAME = OUTPUT_FOLDER_NAME + "polygons_filtered.txt";
+	public static final String POLYGONS_FINAL_FILENAME = OUTPUT_FOLDER_NAME + "polygons_final.txt";
 
 	public static final String REGIONS_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\regions.png";
 	public static final String VISUAL_REGIONS_FILENAME = System.getProperty("user.dir")+"\\output\\map\\polygons\\regions_visual.png";
@@ -50,19 +53,6 @@ public class PolygonCreator {
 			}
 		}
 		FileOperator.writeImage(regionC, filename);
-	}
-
-	void printToFile(List<Region> regions, String fileName) {
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
-			for(int i=0;i<regions.size();i++) {
-				Region region = regions.get(i);
-				writer.write(region.toString());
-				if(i<regions.size()-1) writer.newLine();   // Write a new line character (platform-independent)
-			}
-			writer.flush();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 
 	void addIfNew(List<Point> list, Point p) {
@@ -148,7 +138,7 @@ public class PolygonCreator {
 		for(Region region : regions) {
 			List<Point> polygon = region.polygon;
 			List<Integer> idxs = region.opposingRegions;
-			
+
 			int n = polygon.size();
 
 			for(int j=n-1;j>=0;j--) {
@@ -175,7 +165,6 @@ public class PolygonCreator {
 			Region region = regions.get(i);
 
 			if(region.polygon.size() > 0 && Geometry.calculatePolygonAreaGlobe(region.polygon, w, h) <= minSize) {
-				//				System.out.println(Geometry.calculatePolygonAreaGlobe(region.polygon, w, h)+" vs "+minSize+" "+region.outerNeighbors.size());
 				if(region.outerNeighbors.size() == 1) {
 					boolean canRemove = regions.get(region.outerNeighbors.get(0)).canRemoveRegion(i);
 					if(canRemove) {
@@ -183,106 +172,32 @@ public class PolygonCreator {
 						regions.get(i).clear();
 					}
 				} 
-				else if(region.outerNeighbors.size() == 2) {
-					if(region.outerNeighbors.get(0) == -1) {
-						Region region2 = regions.get(region.outerNeighbors.get(1));
-						if(region2.canRemoveRegion(i)) {
-							region2.removeRegion(i, region.outerNeighbors.get(0));
-							regions.get(i).clear();
-						}
-					} else if(region.outerNeighbors.get(1) == -1) {
-						Region region1 = regions.get(region.outerNeighbors.get(0));
-						if(region1.canRemoveRegion(i)) {
-							region1.removeRegion(i, region.outerNeighbors.get(1));
-							regions.get(i).clear();
-						}
-					} else {
-						Region region1 = regions.get(region.outerNeighbors.get(0));
-						Region region2 = regions.get(region.outerNeighbors.get(1));
-						if(region1.canRemoveRegion(i) && region2.canRemoveRegion(i)) {
-							region1.removeRegion(i, region.outerNeighbors.get(1));
-							region2.removeRegion(i, region.outerNeighbors.get(0));
-							regions.get(i).clear();
-						}
-					}
-				}
+								else if(region.outerNeighbors.size() == 2) {
+									if(region.outerNeighbors.get(0) == -1) {
+										Region region2 = regions.get(region.outerNeighbors.get(1));
+										if(region2.canRemoveRegion(i)) {
+											region2.removeRegion(i, region.outerNeighbors.get(0));
+											regions.get(i).clear();
+										}
+									} else if(region.outerNeighbors.get(1) == -1) {
+										Region region1 = regions.get(region.outerNeighbors.get(0));
+										if(region1.canRemoveRegion(i)) {
+											region1.removeRegion(i, region.outerNeighbors.get(1));
+											regions.get(i).clear();
+										}
+									} else {
+										Region region1 = regions.get(region.outerNeighbors.get(0));
+										Region region2 = regions.get(region.outerNeighbors.get(1));
+										if(region1.canRemoveRegion(i) && region2.canRemoveRegion(i)) {
+											region1.removeRegion(i, region.outerNeighbors.get(1));
+											region2.removeRegion(i, region.outerNeighbors.get(0));
+											regions.get(i).clear();
+										}
+									}
+								}
 			}
 		}
 	}
-
-	//	public static int[] getSortedIndices(final double[] data) {
-	//		// Create an array of Integer objects representing the original indices
-	//		Integer[] indices = new Integer[data.length];
-	//		for (int i = 0; i < data.length; i++) {
-	//			indices[i] = i;
-	//		}
-	//
-	//		// Sort the indices array using a custom Comparator
-	//		// The Comparator compares the values in the 'data' array at the given indices
-	//		Arrays.sort(indices, new Comparator<Integer>() {
-	//			@Override
-	//			public int compare(final Integer index1, final Integer index2) {
-	//				// Compare the values from the original 'data' array
-	//				return Double.compare(data[index1], data[index2]);
-	//			}
-	//		});
-	//
-	//		int[] result = new int[indices.length];
-	//		for(int i=0;i<result.length;i++) result[i] = indices[i];
-	//
-	//		return result;
-	//	}
-
-	//	void simplifyVisvalingamWhyatt(List<Region> regions, double delta, int w, int h) {
-	//		for(int i=regions.size()-1;i>=0;i--) {
-	//			Region region = regions.get(i);
-	//			double regionSize = Geometry.calculatePolygonAreaGlobe(region.polygon, w, h);
-	//			if(region.polygon.size() > 0) {
-	//
-	//				double[] sizes = new double[region.polygon.size()];
-	//				for(int j=0;j<sizes.length;j++) {
-	//					int jleft = j>0?j-1:sizes.length-1;
-	//					int jright = (j+1)%sizes.length;
-	//					List<Point> triangle = new ArrayList<Point>();
-	//					triangle.add(region.polygon.get(jleft));
-	//					triangle.add(region.polygon.get(j));
-	//					triangle.add(region.polygon.get(jright));
-	//					sizes[j] = Geometry.calculatePolygonAreaGlobe(triangle, w, h);
-	//				}
-	//				
-	////				System.out.println("Region "+i);
-	//
-	//				int[] indices = getSortedIndices(sizes);
-	//				for(int j=0;j<indices.length;j++) {
-	//					int jmid = indices[j];
-	//					int jleft = jmid>0?jmid-1: region.opposingRegions.size()-1;
-	//					int jright = (jmid+1)%region.opposingRegions.size();
-	//					// attempt remove:
-	//					if(region.opposingRegions.get(jleft) == region.opposingRegions.get(jmid) && sizes[jmid] < delta && 1. * sizes[jmid] / regionSize < 0.25) {
-	//						boolean intersect = false;
-	//						for(int k=0;k<region.polygon.size();k++) {
-	//							int kk = (k + 1) % region.polygon.size();
-	//							if((kk < jleft || k > jright) && Geometry.doSegmentsIntersect(region.polygon.get(k), region.polygon.get(kk), region.polygon.get(jleft), region.polygon.get(jright))) {
-	//								intersect = true;
-	//								break;
-	//							}
-	//						}
-	////						System.out.println(intersect);
-	//						if(!intersect) {
-	//							int idx = region.opposingRegions.get(jmid);
-	//							if(idx >= 0) regions.get(idx).removeAt(region.polygon.get(jmid));
-	//							region.polygon.remove(jmid);
-	//							region.opposingRegions.remove(jmid);
-	//							for(int k=0;k<indices.length;k++) {
-	//								if(indices[k] > jmid) indices[k]--;
-	//							}
-	//						}
-	//					}
-	//				}
-	////				System.out.println();
-	//			}
-	//		}
-	//	}
 
 	void printShape(List<Point> polygon) {
 		for(int j=0;j<polygon.size();j++) {
@@ -307,7 +222,6 @@ public class PolygonCreator {
 					prevSize = region.polygon.size();
 
 					int n = region.opposingRegions.size();
-//					if(i == 22448) System.out.println(region.polygon);
 
 					List<Integer> segments = new ArrayList<Integer>();
 					for(int j=0;j<n;j++) {
@@ -315,8 +229,6 @@ public class PolygonCreator {
 							segments.add(j+1);
 						}
 					}
-
-//					if(i == 22448) System.out.println("***"+segments);
 
 					if(segments.size() == 0) {
 						simplifyRecursive(regions, i, 0, n - 1, delta, prevSize);
@@ -384,9 +296,10 @@ public class PolygonCreator {
 				valid = false;
 			}
 			if(oppRegion >= 0) {
-//				System.out.println(idx+" "+oppRegion+" "+pStart+" "+pEnd);
-//				System.out.println(regions.get(oppRegion));
+				//				System.out.println(idx+" "+oppRegion+" "+pStart+" "+pEnd);
+				//				System.out.println(regions.get(oppRegion));
 				cutSize = 0;
+				if(regions.get(oppRegion).polygon.size() < 3) System.out.println(regions.get(oppRegion).polygon);
 				totSize = Geometry.calculatePolygonArea(regions.get(oppRegion).polygon);
 				for (int i = (start+1)%n; i != end; i = (i+1)%n) {
 					List<Point> triangle = new ArrayList<Point>();
@@ -403,18 +316,24 @@ public class PolygonCreator {
 			simplifyRecursive(regions, idx, start, index, epsilon, prevSize);
 			simplifyRecursive(regions, idx, index, end, epsilon, prevSize);
 		} else {
-//			if(oppRegion == 22448) {
-//				System.out.println(idx+" "+oppRegion+" "+start+" "+end+" "+pStart+" "+pEnd);
-//				System.out.println("+"+regions.get(idx));
-//				System.out.println("*"+regions.get(oppRegion));
-//			}
-			region.removeSegment(pStart, pEnd, oppRegion);
-			if(oppRegion >= 0) regions.get(oppRegion).removeSegment(pStart, pEnd, idx);
-			
-//			if(idx == 22448) System.out.println("+"+regions.get(idx));
-//			if(oppRegion == 22448) {
-//				System.out.println("*"+regions.get(oppRegion));
-//			}
+			//			int r1 = 57219;
+			//			int r2 = 57217;
+			//			if((idx == r1 && oppRegion == r2) || (idx == r2 && oppRegion == r1)) System.out.println("*+* "+pStart+" to "+pEnd);
+
+			//			int r1 = 106037;
+			//			if(idx == r1 || oppRegion == r1) System.out.println("*+* "+pStart+" to "+pEnd);
+
+			int[] indices1 = region.getSegmentIndices(pStart, pEnd, oppRegion);
+			if(oppRegion >= 0) {
+				Point[] points = region.getSegmentPoints(indices1, oppRegion);
+				int[] indices2 = regions.get(oppRegion).getSegmentIndices(points);
+				if(indices2 != null) {
+					region.removeSegment(indices1, oppRegion);
+					regions.get(oppRegion).removeSegment(indices2, idx);
+				}
+			} else {
+				region.removeSegment(indices1, oppRegion);
+			}
 		}
 	}
 
@@ -504,8 +423,6 @@ public class PolygonCreator {
 				// Check for convexity and if the triangle formed is an "ear"
 				// (i.e., no other polygon vertices are inside the triangle)
 
-				//				if(tracing) System.out.println(vCurr+" "+Geometry.isConvex(vPrev, vCurr, vNext, clockwise)+" ");
-
 				if (Geometry.isEar(vPrev, vCurr, vNext, vertices, clockwise)) {
 					setBit(order, idx, true);
 					vertices.remove(i);
@@ -521,8 +438,6 @@ public class PolygonCreator {
 				}
 			}
 		}
-
-		//		System.out.println();
 
 		byte[] result = new byte[(int) (idx/8) + 1];
 		for(int i=0;i<result.length;i++) result[i] = order[i];
@@ -541,70 +456,13 @@ public class PolygonCreator {
 		}
 	}
 
-	void finalPrint(List<Region> regions, String fileName, int width, int height) {
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
-			int maxDrawOrder = -1;
-			for(Region region : regions) if(region.drawOrder > maxDrawOrder) maxDrawOrder = region.drawOrder;
+	
 
-			boolean start = true;
-
-			for(int d=maxDrawOrder;d>=0;d--) {
-				for(int j=0;j<regions.size();j++) {
-					Region region = regions.get(j);
-					if(region.drawOrder == d) {
-						if(start) {
-							start = false;
-						} else writer.write("\n");
-						//						int[]argb = Colors.intToRGBArray(region.colorData);
-						//						writer.write(argb[0]+","+argb[1]+","+argb[2]);
-						writer.write(""+region.colorData);
-						int z = 0;
-						if(region.polygon.size() > 0) {
-							List<Point> vertices = region.polygon;
-							while (vertices.size() > 2) {
-								for (int i=vertices.size()-1;i>=0;i--) {
-									int prev = (i == 0) ? vertices.size() - 1 : i - 1;
-									int next = (i == vertices.size() - 1) ? 0 : i + 1;
-
-									Point p1 = vertices.get(prev);
-									Point p2 = vertices.get(i);
-									Point p3 = vertices.get(next);
-									List<Point> l = new ArrayList<Point>();
-									l.add(p1); l.add(p2); l.add(p3);
-
-									if(region.getBit(region.triangleDrawOrder, z)) {
-										//										System.out.println(Geometry.calculatePolygonArea(l) );
-										//										if(Geometry.calculatePolygonArea(l) > 0) {
-										int p1x = p1.x * 4096 / width;
-										int p1y = p1.y * 4096 / height;
-										int p2x = p2.x * 4096 / width;
-										int p2y = p2.y * 4096 / height;
-										int p3x = p3.x * 4096 / width;
-										int p3y = p3.y * 4096 / height;
-
-										writer.write("\n"+p1x+","+p1y+","+p2x+","+p2y+","+p3x+","+p3y);
-										//										}
-										vertices.remove(i);
-									}
-
-									z++;
-								}
-							}
-						}
-					}
-				}
-			}
-			writer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	static int[][] initMapData(String inputFileName, int s) {
+	static int[][] initMapData(String inputFileName, int s, int minX, int minY, int maxX, int maxY) {
 		int[][] mapData = null;
 
 		try{
-			mapData = FileOperator.readImage(inputFileName, s);
+			mapData = FileOperator.readImage(inputFileName, s, minX, minY, maxX, maxY);
 			System.out.println("done reading");
 		} catch(Exception e){
 			System.out.println(e.getMessage());
@@ -612,30 +470,12 @@ public class PolygonCreator {
 
 		return mapData;
 	}
-
-	//	static Map<Integer,Integer> getIndexMap(int[][] mapData, String fileName) {
-	//		Map<Integer,Integer> map = new HashMap<Integer,Integer>();
-	//
-	//		int c = 0;
-	//		for (int x = 0; x < mapData.length; x++) {
-	//			for (int y = 0; y < mapData[x].length; y++) {
-	//				if(!map.containsKey(mapData[x][y])) {
-	//					map.put(mapData[x][y], c);
-	//					c++;
-	//					if(c >= 16) {
-	//						System.out.println("Error: more than 16 unique colors in "+fileName);
-	//						for(int i : map.keySet()) {
-	//							System.out.println(Arrays.toString(Colors.intToRGBArray(i))+" "+i);
-	//						}
-	//					}
-	//				}
-	//			}
-	//		}
-	//
-	//		return map;
-	//	}
-
+	
 	static int[][] mergeMapData(int s) {
+		return mergeMapData(s, 0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+	}
+
+	static int[][] mergeMapData(int s, int minX, int minY, int maxX, int maxY) {
 		String[] inputFileNames = new String[] {
 				ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME,
 				BiomeMapCreator.BIOME_FINAL_RESCALED_MAP_FILENAME,
@@ -652,10 +492,6 @@ public class PolygonCreator {
 		Map<Integer,Integer> soilMap = new HashMap<Integer,Integer>();
 		for(int i=0;i<SoilMapCreator.ALL_SOILS.length;i++) soilMap.put(SoilMapCreator.ALL_SOILS[i],i);
 
-		//		for(int i : biomeMap.keySet()) {
-		//			System.out.println(Arrays.toString(Colors.intToRGBArray(i))+" "+biomeMap.get(i));
-		//		}
-
 		int w = 0;
 		int h = 0;
 
@@ -667,15 +503,13 @@ public class PolygonCreator {
 		mappings.add(soilMap);
 
 		for(int i=0;i<inputFileNames.length;i++) {
-			data[i] = initMapData(inputFileNames[i], s);
+			data[i] = initMapData(inputFileNames[i], s, minX, minY, maxX, maxY);
 			if(w == 0) {
 				w = data[i].length;
 				h = data[i][0].length;
 			} else {
 				if(w != data[i].length || h != data[i][0].length) System.out.println("Error: dimension of map files inconsistent in mergeMapDataFromSources! "+inputFileNames[i]);
 			}
-
-			//			mappings.add(getIndexMap(data[i], inputFileNames[i]));
 		}
 
 		int[][] finalMap = new int[w][h];
@@ -874,14 +708,12 @@ public class PolygonCreator {
 		boolean finished = false;
 		while(!finished) {
 			int n = polygon.size();
-			//			System.out.println(n+" "+polygon.get(n-2)+" "+polygon.get(n-1));
 			finished = !updatePolygon(regionData,region.regionIdx,polygon,oppRegions,polygon.get(n-1),polygon.get(n-2));
 			if(polygon.get(0).equals(polygon.get(polygon.size()-1))) {
 				finished = true;
 			}
 		}
 
-		//		polygon.removeLast();
 		polygon.remove(polygon.size()-1);
 
 		region.polygon = polygon;
@@ -899,7 +731,6 @@ public class PolygonCreator {
 	}
 
 	List<Region> initRegions(int[][] mapData) {
-		//		int iii = 16146;
 		System.out.println("start: create initial polygons");
 
 		List<Region> regions = new ArrayList<Region>();
@@ -909,8 +740,6 @@ public class PolygonCreator {
 
 		for(int i=0;i<regionResult.numRegions;i++) regions.add(new Region(i));
 		boolean[] done = new boolean[regionResult.numRegions];
-
-		//		int c = 0;
 
 		for (int x = 0; x < mapData.length; x++) {
 			for (int y = 0; y < mapData[x].length; y++) {
@@ -930,7 +759,7 @@ public class PolygonCreator {
 		}
 
 		System.out.println("done: create initial polygons");
-		printToFile(regions, POLYGONS_BASE_FILENAME);
+		FileOperator.printRegionListToFile(regions, POLYGONS_BASE_FILENAME);
 
 		return regions;
 	}
@@ -987,50 +816,6 @@ public class PolygonCreator {
 		return regions;
 	}
 
-	//	void testIntegrity(List<Region> regions, int[][] mapData) {
-	//		for(int i=0;i<regions.size();i++) {
-	//			Region region = regions.get(i);
-	//			for(int j=0;j<region.polygons.size();j++) {
-	//				List<Point> polygon = region.polygons.get(j);
-	//				List<Integer> opps = region.opposingRegions.get(j);
-	//				for(int k=0;k<polygon.size();k++) {
-	//					int kk = (k+1) % polygon.size();
-	//
-	//					Point p1 = polygon.get(k);
-	//					Point p2 = polygon.get(kk);
-	//
-	//					int opp = opps.get(k);
-	//
-	//					boolean valid = true;
-	//
-	//					if(p1.x > p2.x) {
-	//						for(int l=p2.x;l<p1.x;l++) {
-	//							if(
-	//									p1.y < result.regions[l].length-1 &&
-	//									!(result.regions[l][p1.y] == region.regionIdx) && 
-	//									!(result.regions[l][p1.y+1] == region.regionIdx)
-	//									) {System.out.println(l+" "+p1.y+" "+i);}
-	//						}
-	//						if(!valid) System.out.println("fail!");
-	//						valid = false;
-	//					} 
-	//					if(p2.x > p1.x) {
-	//						if(!valid) System.out.println("fail!");
-	//						valid = false;
-	//					}
-	//					if(p1.y > p2.y) {
-	//						if(!valid) System.out.println("fail!");
-	//						valid = false;
-	//					} 
-	//					if(p2.y > p1.y) {
-	//						if(!valid) System.out.println("fail!");
-	//						valid = false;
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
-
 	void initAndPruneMap(int[][] mapData) {
 		List<Region> regions = initRegions(mapData);
 		System.out.println(getTotalnumPoints(regions));
@@ -1039,11 +824,15 @@ public class PolygonCreator {
 		System.out.println("done: basic prune polygons");
 		System.out.println(getTotalnumPoints(regions));
 
-		printToFile(regions, POLYGONS_PRUNED_FILENAME);
+		FileOperator.printRegionListToFile(regions, POLYGONS_PRUNED_FILENAME);
 	}
 
 	void processMap(int[][] mapData) {
-				initAndPruneMap(mapData);
+		processMap(mapData, POLYGONS_FINAL_FILENAME);
+	}
+
+	void processMap(int[][] mapData, String outputFileName) {
+		initAndPruneMap(mapData);
 
 		List<Region> regions = loadConnectedPolygons();
 
@@ -1051,7 +840,7 @@ public class PolygonCreator {
 		System.out.println("done: merged regions");
 		System.out.println(getTotalnumPoints(regions));
 
-		printToFile(regions, POLYGONS_ORDERED_FILENAME);
+		FileOperator.printRegionListToFile(regions, POLYGONS_ORDERED_FILENAME);
 
 //		for(int i=0;i<3;i++) {
 //			filterSmallRegions(regions, 20000, mapData.length, mapData[0].length);
@@ -1063,18 +852,58 @@ public class PolygonCreator {
 		System.out.println("done: simplify using Douglas-Peucker");
 		System.out.println(getTotalnumPoints(regions));
 
-		printToFile(regions, POLYGONS_FILTERED_FILENAME);
+		FileOperator.printRegionListToFile(regions, POLYGONS_FILTERED_FILENAME);
 
 		determineTriangleDrawOrders(regions);
 		System.out.println("done: determine triangle draw order");
 
-		finalPrint(regions, POLYGONS_FINAL_FILENAME, mapData.length, mapData[0].length);
+		FileOperator.finalPrintPolygons(regions, outputFileName, mapData.length, mapData[0].length);
+	}
+
+	public void runSample() {
+		int scale = 20;
+		new PolygonCreator().processMap(mergeMapData(scale));
+	}
+
+	public void runAll() {
+		int scale, w, h; // w number of longitude regions, h number of latitude regions 
+		// zoom level 1
+		scale = 8;
+		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Polygons_0_0.txt");
+
+		// zoom level 2
+		scale = 4;
+		w = 8;
+		h = 4;
+		for(int y=0;y<h;y++) {
+			for(int x=0;x<w;x++) {
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Polygons_"+x+"_"+y+".txt");
+			}
+		}
+		
+		// zoom level 3
+		scale = 2;
+		w = 16;
+		h = 8;
+		for(int y=0;y<h;y++) {
+			for(int x=0;x<w;x++) {
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Polygons_"+x+"_"+y+".txt");
+			}
+		}
+		
+		// zoom level 4
+		scale = 1;
+		w = 32;
+		h = 16;
+		for(int y=0;y<h;y++) {
+			for(int x=0;x<w;x++) {
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Polygons_"+x+"_"+y+".txt");
+			}
+		}
 	}
 
 	public static void main(String[] args) {
-		int scale = 10;
-		//		new PolygonCreator().processMap(initMapData(ElevationMapCreator.BASE_MAP_OUTPUT_FILENAME));
-		//		new PolygonCreator().processMap(initMapData(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME));
-		new PolygonCreator().processMap(mergeMapData(scale));
+//		new PolygonCreator().runSample();
+				new PolygonCreator().runAll();
 	}
 }

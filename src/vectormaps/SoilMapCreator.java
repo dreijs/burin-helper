@@ -4,9 +4,11 @@ import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 
+import util.FileOperator;
+
 public class SoilMapCreator {
 	// https://upload.wikimedia.org/wikipedia/commons/e/e5/Global_soils_map_USDA.jpg
-	public static final String SOIL_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Soil4.png";
+	public static final String SOIL_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Soil3.png";
 	public static final String SOIL_FINAL_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\soil.png";
 	public static final String SOIL_FINAL_RESCALED_MAP_FILENAME = System.getProperty("user.dir")+"\\output\\map\\soil_rescaled.png";
 

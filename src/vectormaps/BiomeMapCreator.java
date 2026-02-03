@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 
+import util.FileOperator;
+
 public class BiomeMapCreator {
 	// https://upload.wikimedia.org/wikipedia/commons/e/e5/Global_soils_map_USDA.jpg
 	public static final String BIOME_BASE_MAP_FILENAME = System.getProperty("user.dir")+"\\input\\Vegetation4b.png";

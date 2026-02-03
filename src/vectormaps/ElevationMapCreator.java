@@ -1,5 +1,6 @@
 package vectormaps;
 import util.Colors;
+import util.FileOperator;
 
 public class ElevationMapCreator {
 
