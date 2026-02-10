@@ -2,21 +2,35 @@ package util;
 
 public class Colors {
 
-	public static int blueVal(int rgbValue) {
-		return rgbValue & 0xFF;
+	public static int redVal(int argbValue) {
+		// Extract Red component: Shift right by 16 bits and mask with 0xFF (255)
+		return (argbValue >> 16) & 0xFF; 
+	}
+	
+	public static int greenVal(int argbValue) {
+		// Extract Green component: Shift right by 8 bits and mask with 0xFF
+		return (argbValue >> 8) & 0xFF; 
+	}
+	
+	public static int blueVal(int argbValue) {
+		// Extract Blue component: Mask with 0xFF
+		return argbValue & 0xFF; 
+	}
+	
+	public static int alphaVal(int argbValue) {
+		return (argbValue >> 24) & 0xFF; 
+	}
+	
+	public static boolean isBlack(int argbValue) {
+		return redVal(argbValue) == 0 && greenVal(argbValue) == 0 && blueVal(argbValue) == 0;
 	}
 
 	public static int[] intToRGBArray(int argbValue) {
 		int[] rgbArray = new int[3];
 
-		// Extract Red component: Shift right by 16 bits and mask with 0xFF (255)
-		rgbArray[0] = (argbValue >> 16) & 0xFF; 
-
-		// Extract Green component: Shift right by 8 bits and mask with 0xFF
-		rgbArray[1] = (argbValue >> 8) & 0xFF; 
-
-		// Extract Blue component: Mask with 0xFF
-		rgbArray[2] = argbValue & 0xFF; 
+		rgbArray[0] = redVal(argbValue); 
+		rgbArray[1] = greenVal(argbValue); 
+		rgbArray[2] = blueVal(argbValue); 
 
 		return rgbArray;
 	}

@@ -13,6 +13,7 @@ import java.util.Map;
 import util.Colors;
 import util.FileOperator;
 import util.Geometry;
+import util.MapOperator;
 import util.Point;
 import util.Region;
 
@@ -463,6 +464,7 @@ public class PolygonCreator {
 
 		try{
 			mapData = FileOperator.readImage(inputFileName, s, minX, minY, maxX, maxY);
+			mapData = MapOperator.removeOrExpandLonePixels(mapData);
 			System.out.println("done reading");
 		} catch(Exception e){
 			System.out.println(e.getMessage());
@@ -479,7 +481,8 @@ public class PolygonCreator {
 		String[] inputFileNames = new String[] {
 				ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME,
 				BiomeMapCreator.BIOME_FINAL_RESCALED_MAP_FILENAME,
-				SoilMapCreator.SOIL_FINAL_RESCALED_MAP_FILENAME
+				SoilMapCreator.SOIL_FINAL_RESCALED_MAP_FILENAME,
+				FeatureMapCreator.FEATURES_RAW_OUTPUT_FILENAME
 		};
 
 		Map<Integer,Integer> elevationMap = new HashMap<Integer,Integer>();
@@ -491,7 +494,10 @@ public class PolygonCreator {
 
 		Map<Integer,Integer> soilMap = new HashMap<Integer,Integer>();
 		for(int i=0;i<SoilMapCreator.ALL_SOILS.length;i++) soilMap.put(SoilMapCreator.ALL_SOILS[i],i);
-
+		
+		Map<Integer,Integer> featureMap = new HashMap<Integer,Integer>();
+		for(int i=0;i<FeatureMapCreator.ALL_FEATURES.length;i++) featureMap.put(FeatureMapCreator.ALL_FEATURES[i],i);
+		
 		int w = 0;
 		int h = 0;
 
@@ -501,6 +507,7 @@ public class PolygonCreator {
 		mappings.add(elevationMap);
 		mappings.add(biomeMap);
 		mappings.add(soilMap);
+		mappings.add(featureMap);
 
 		for(int i=0;i<inputFileNames.length;i++) {
 			data[i] = initMapData(inputFileNames[i], s, minX, minY, maxX, maxY);
@@ -519,7 +526,7 @@ public class PolygonCreator {
 				int v = 0;
 				for(int k=0;k<data.length;k++) {
 					int exp = (int) Math.pow(16,k);
-					if(!mappings.get(k).containsKey(data[k][x][y])) System.out.println("error in mergeMapData!!! " +x+" "+y+" "+data[k][x][y]+" "+k);
+					if(!mappings.get(k).containsKey(data[k][x][y])) System.out.println("error in mergeMapData!!! " +x+" "+y+" "+data[k][x][y]+" "+Arrays.toString(Colors.intToARGBArray(data[k][x][y]))+" "+k);
 					v += mappings.get(k).get(data[k][x][y]) * exp;
 				}
 				finalMap[x][y] = v;
@@ -861,8 +868,8 @@ public class PolygonCreator {
 	}
 
 	public void runSample() {
-		int scale = 20;
-		new PolygonCreator().processMap(mergeMapData(scale));
+		int scale = 8;
+		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Polygons_0_0.txt");
 	}
 
 	public void runAll() {
@@ -903,7 +910,7 @@ public class PolygonCreator {
 	}
 
 	public static void main(String[] args) {
-//		new PolygonCreator().runSample();
-				new PolygonCreator().runAll();
+		new PolygonCreator().runSample();
+//				new PolygonCreator().runAll();
 	}
 }

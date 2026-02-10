@@ -1,20 +1,228 @@
 package vectormaps;
 
 import java.awt.Color;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.List;
+
 import util.Colors;
 import util.FileOperator;
+import util.Geometry;
+import util.MapOperator;
+import util.Point;
 
 public class FeatureMapCreator {
+	public static final String ICECAP_INPUT_FILENAME = System.getProperty("user.dir")+"\\input\\icecap1ce_filtered.png";
+	
 	public static final String SAMPLES_OUTPUT_FOLDER = System.getProperty("user.dir")+"\\output\\map\\samples\\mountain_samples\\";
 	public static final String HILL_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\hill_map.png";
 	public static final String MOUNTAINS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\mountain_map.png";
+	public static final String WETLANDS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\wetlands_map.png";
+	public static final String WATER_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\water_map.png";
 	public static final String CLIFFS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\cliff_map.png";
+	public static final String ICECAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\icecap_map.png";
+	
 	public static final String FEATURES_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\features_map.png";
+	public static final String FEATURES_RAW_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\features_raw_map.png";
 
+	public static final int NO_FEATURES = new Color(255, 255, 255).getRGB(); 
+	
+	public static final int WETLANDS_COLOR = new Color(0, 192, 128).getRGB(); 
 	public static final int HILL_COLOR = new Color(255, 128, 0).getRGB(); 
 	public static final int MOUNTAIN_COLOR = new Color(255, 0, 0).getRGB(); 
 	public static final int CLIFF_NORTH_COLOR = new Color(192, 0, 0).getRGB(); 
 	public static final int CLIFF_SOUTH_COLOR = new Color(128, 0, 0).getRGB(); 
+	
+	public static final int OCEAN_COLOR = new Color(0, 16, 96).getRGB();
+	public static final int SEA_COLOR = new Color(0, 32, 128).getRGB();
+	public static final int INNER_SEA_COLOR = new Color(0, 32, 192).getRGB();
+	public static final int LAKE_COLOR = new Color(32, 96, 255).getRGB();
+	public static final int ICECAP_COLOR = new Color(240, 248, 255).getRGB();
+	public static final int ICY_WATER_COLOR = new Color(200, 224, 255).getRGB();
+	
+	public static final int[] ALL_FEATURES = {NO_FEATURES, WETLANDS_COLOR, HILL_COLOR, MOUNTAIN_COLOR, CLIFF_NORTH_COLOR, CLIFF_SOUTH_COLOR, OCEAN_COLOR, SEA_COLOR, INNER_SEA_COLOR, LAKE_COLOR, ICECAP_COLOR, ICY_WATER_COLOR};
+
+	public int[][] addWetlandData(int[][] baseData, int[][] elevationData, int[][] soilData, int d, int h) {
+		int[][] wetlandData = new int[baseData.length][baseData[0].length];
+		
+		for (int x = 0; x < baseData.length; x++) {
+			for (int y = 0; y < baseData[x].length; y++) {
+				if(soilData[x][y] == SoilMapCreator.entisol && baseData[x][y] != ElevationMapCreator.BLUE && Colors.blueVal(elevationData[x][y]) < h) {
+					wetlandData[x][y] = 0xFFFFFFFF;
+				} else {
+					wetlandData[x][y] = ElevationMapCreator.GREEN;
+				}
+			}
+		}
+
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(RiverProcessor.SIMPLIFIED_RIVER_DATA_FILENAME));
+
+			String line;
+
+			while ((line = reader.readLine()) != null) {
+				String[] lineData = line.split(",  ");
+				System.out.println(lineData.length);
+				for(int i=1;i<lineData.length-1;i++) {
+					// -1.40912872440386E7 -6253856.36090267 1.79637592676961E7 8782793.20125636
+					String[] s1a = lineData[i].split("\\(");
+					String[] s2a = s1a[1].split("\\)");
+					String[] s3a = s2a[0].split(", ");
+					String[] s1b = lineData[i+1].split("\\(");
+					String[] s2b = s1b[1].split("\\)");
+					String[] s3b = s2b[0].split(", ");
+					int xa = (int) (baseData.length * (Long.parseLong(s3a[0]) + 180000000) / 360000000);
+					int ya = (int) (baseData[0].length * (Long.parseLong(s3a[1]) + 90000000) / 180000000);
+					int xb = (int) (baseData.length * (Long.parseLong(s3b[0]) + 180000000) / 360000000);
+					int yb = (int) (baseData[0].length * (Long.parseLong(s3b[1]) + 90000000) / 180000000);
+
+					List<Point> points = Geometry.getLine(xa, baseData[0].length - ya - 1, xb, baseData[0].length - yb - 1);
+					for(Point p : points) {
+						if(wetlandData[p.x][p.y] != ElevationMapCreator.GREEN) wetlandData[p.x][p.y] = WETLANDS_COLOR;
+					}
+				}
+			}
+			
+			int[] wetlands = new int[] {WETLANDS_COLOR};
+			int[] greenAndWetlands = new int[] {ElevationMapCreator.GREEN, WETLANDS_COLOR};
+			
+			int[][] newData = MapOperator.fillByExtension(wetlandData, greenAndWetlands, wetlands, 1, "", d);
+			
+			for (int x = 0; x < baseData.length; x++) {
+				for (int y = 0; y < baseData[x].length; y++) {
+					if(newData[x][y] == WETLANDS_COLOR) {
+						wetlandData[x][y] = WETLANDS_COLOR;
+					} else {
+						wetlandData[x][y] = baseData[x][y];
+					}
+				}
+			}
+
+			reader.close();
+		} catch (IOException e) {
+			System.err.println("Error reading file: " + e.getMessage());
+		}
+
+		System.out.println("done");
+
+		return wetlandData;
+	}
+
+	public void createWetlandMap(int d) {
+		int[][] elevationData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_FILENAME);
+		int[][] levelData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
+		int[][] soilData = FileOperator.readImage(SoilMapCreator.SOIL_FINAL_RESCALED_MAP_FILENAME);
+		System.out.println("done reading");
+
+		int[][] wetlandData = addWetlandData(levelData, elevationData, soilData, d, 36);
+
+		FileOperator.writeImage(wetlandData, WETLANDS_OUTPUT_FILENAME);
+	}
+	
+	public int[][] addIcecapData(int[][] baseData, int[][] iceInputData, int d) {
+		int[] icecap = new int[] {ICECAP_COLOR};
+		int[] blueAndIcecap = new int[] {ElevationMapCreator.BLUE, ICECAP_COLOR};
+		int[][] rescaledIcecapData = MapOperator.graduallyRescaleMap(iceInputData, blueAndIcecap, blueAndIcecap, System.getProperty("user.dir")+"\\output\\map\\polar_intermediate_filled_"+d+"_.png");
+		int[][] icyWaterDataData = MapOperator.fillByExtension(rescaledIcecapData, icecap, icecap, 1, System.getProperty("user.dir")+"\\output\\map\\icy_intermediate_filled_"+d+"_.png", d);
+		
+		int[][] finalData = new int[rescaledIcecapData.length][rescaledIcecapData[0].length];
+		for (int x = 0; x < rescaledIcecapData.length; x++) {
+			for (int y = 0; y < rescaledIcecapData[x].length; y++) {
+				if(rescaledIcecapData[x][y] == ICECAP_COLOR) finalData[x][y] = ICECAP_COLOR;
+				else if(icyWaterDataData[x][y] == ICECAP_COLOR) finalData[x][y] = ICY_WATER_COLOR;
+				else finalData[x][y] = baseData[x][y];
+			}
+		}
+		
+		return finalData;
+	}
+	
+	public void createIcecapMap(int d) {
+		int[][] levelData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
+		int[][] iceInputData= FileOperator.readImage(ICECAP_INPUT_FILENAME);
+		for (int x = 0; x < iceInputData.length; x++) {
+			for (int y = 0; y < iceInputData[x].length; y++) {
+				if(Colors.isBlack(iceInputData[x][y]) && Colors.alphaVal(iceInputData[x][y]) > 0) iceInputData[x][y] = ICECAP_COLOR;
+				else iceInputData[x][y] = ElevationMapCreator.BLUE;
+			}
+		}
+		
+		int[][] iceData = addIcecapData(levelData, iceInputData, d);
+		
+		FileOperator.writeImage(iceData, ICECAP_OUTPUT_FILENAME);
+		
+	}
+
+	public int[][] addWaterData(int[][] baseData) {
+		int[] green = new int[] {ElevationMapCreator.GREEN};
+		int[] ocean = new int[] {OCEAN_COLOR};
+		int[] greenAndOcean = new int[] {ElevationMapCreator.GREEN, OCEAN_COLOR};
+		
+		int[][] sea1Buffer = MapOperator.fillByExtension(baseData, green, green, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_"+60+"_.png", 60);
+		int[][] sea2Buffer = MapOperator.fillByExtension(baseData, green, green, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_"+240+"_.png", 240);
+
+		int[][] saltWaterData = new int[baseData.length][baseData[0].length];
+
+		for (int x = 0; x < baseData.length; x++) {
+			for (int y = 0; y < baseData[x].length; y++) {
+				saltWaterData[x][y] = baseData[x][y];
+			}
+		}
+		
+		int[][] oceanPixels = new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}}; // one should suffice, but more increase the efficiency
+		int[][] saltWaterPixels = new int[][] {{14380, 2725}, {13875, 3075}};
+		
+		for(int i=0;i<oceanPixels.length;i++) {
+			sea1Buffer[oceanPixels[i][0]][oceanPixels[i][1]] = OCEAN_COLOR; 
+			sea2Buffer[oceanPixels[i][0]][oceanPixels[i][1]] = OCEAN_COLOR;
+			saltWaterData[oceanPixels[i][0]][oceanPixels[i][1]] = OCEAN_COLOR; 
+		}
+		
+		for(int i=0;i<saltWaterPixels.length;i++) {
+			saltWaterData[saltWaterPixels[i][0]][saltWaterPixels[i][1]] = OCEAN_COLOR; 
+		}
+		
+		int[][] sea1Data = MapOperator.fillByExtensionDepthFirst(sea1Buffer, greenAndOcean, ocean, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_filled_60_.png");
+		int[][] sea2Data = MapOperator.fillByExtensionDepthFirst(sea2Buffer, greenAndOcean, ocean, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_filled_240_.png");
+		
+		int[][] sea1DataB = MapOperator.fillByExtension(sea1Data, ocean, ocean, 1, "", 60);
+		int[][] sea2DataB = MapOperator.fillByExtension(sea2Data, ocean, ocean, 1, "", 240);
+		int[][] saltwaterDataB = MapOperator.fillByExtensionDepthFirst(saltWaterData, greenAndOcean, ocean, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_filled_0_.png");
+		
+		int[][] oceanData = new int[baseData.length][baseData[0].length];
+		
+		for (int x = 0; x < baseData.length; x++) {
+			for (int y = 0; y < baseData[x].length; y++) {
+				if(sea2DataB[x][y] == OCEAN_COLOR) {
+					oceanData[x][y] = OCEAN_COLOR;
+				} else if(sea1DataB[x][y] == OCEAN_COLOR) {
+					oceanData[x][y] = SEA_COLOR;
+				} else if(saltwaterDataB[x][y] == OCEAN_COLOR) {
+					oceanData[x][y] = INNER_SEA_COLOR;
+				} else if(baseData[x][y] == ElevationMapCreator.BLUE) {
+					oceanData[x][y] = LAKE_COLOR;
+				}
+			}
+		}
+		
+		return oceanData;
+	}
+	
+	public void createWaterSampleMap(int w) {
+		int[][] baseData = FileOperator.readImage(ElevationMapCreator.BASE_MAP_OUTPUT_FILENAME);
+		int[] green = new int[] {ElevationMapCreator.GREEN};
+		MapOperator.fillByExtension(baseData, green, green, 1, System.getProperty("user.dir")+"\\output\\map\\ocean_intermediate_"+w+"_.png", w);
+	}
+	
+	public void createWaterMap() {
+		int[][] baseData = FileOperator.readImage(ElevationMapCreator.BASE_MAP_OUTPUT_FILENAME);
+		System.out.println("done reading");
+
+		int[][] waterData = addWaterData(baseData);
+
+		FileOperator.writeImage(waterData, WATER_OUTPUT_FILENAME);
+	}
 
 	public int[][] addHillData(int[][] baseData, int[][] elevationData, int d, int w, int m) {
 		int[][] hillData = new int[baseData.length][];
@@ -126,21 +334,6 @@ public class FeatureMapCreator {
 		FileOperator.writeImage(mountainData, MOUNTAINS_OUTPUT_FILENAME);
 	}
 
-	public void createFeaturesMap() {
-		int[][] elevationData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_FILENAME);
-		int[][] featureData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
-		System.out.println("done reading");
-
-		featureData = addHillData(featureData, elevationData, 20, 6, 80);
-		System.out.println("added hill data");
-		featureData = addMountainData(featureData, elevationData, 32, 3, 96, 6);
-		System.out.println("added mountain data");
-		featureData = addCliffData(featureData, elevationData, 2., 24, 20, 40);
-		System.out.println("added cliff data");
-
-		FileOperator.writeImage(featureData, FEATURES_OUTPUT_FILENAME);
-	}
-
 	public int[][] addCliffData(int[][] baseData, int[][] elevationData, double ww, int d, int dd, int m) {
 		int[][] cliffData = new int[baseData.length][];
 		for (int x = 0; x < baseData.length; x++) {
@@ -177,6 +370,16 @@ public class FeatureMapCreator {
 
 		return cliffData;
 	}
+	
+	public void createCliffMap(double ww, int d, int dd, int m) {
+		int[][] elevationData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_FILENAME);
+		int[][] levelData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
+		System.out.println("done reading");
+
+		int[][] cliffData = addCliffData(levelData, elevationData, ww, d, dd, m);
+
+		FileOperator.writeImage(cliffData, CLIFFS_OUTPUT_FILENAME);
+	}
 
 	public void createCliffMapSamples(double d, int m) {
 		try{
@@ -197,21 +400,99 @@ public class FeatureMapCreator {
 		}
 
 	}
+	
+//	public void createFeaturesMap() {
+//		int[][] elevationData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_FILENAME);
+//		int[][] featureData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
+//		System.out.println("done reading");
+//
+//		featureData = addHillData(featureData, elevationData, 20, 6, 80);
+//		System.out.println("added hill data");
+//		featureData = addMountainData(featureData, elevationData, 32, 3, 96, 6);
+//		System.out.println("added mountain data");
+//		featureData = addCliffData(featureData, elevationData, 2., 24, 20, 40);
+//		System.out.println("added cliff data");
+//
+//		FileOperator.writeImage(featureData, FEATURES_OUTPUT_FILENAME);
+//	}
+	
+
+
+	public void createFeaturesMapFromIntermediates() {
+		int[][] featureData = FileOperator.readImage(ElevationMapCreator.ELEVATION_MAP_OUTPUT_FILENAME);
+		System.out.println("done reading");
+
+		int[][] hillData = FileOperator.readImage(HILL_OUTPUT_FILENAME);
+		int[][] mountainData = FileOperator.readImage(MOUNTAINS_OUTPUT_FILENAME);
+		int[][] cliffData = FileOperator.readImage(CLIFFS_OUTPUT_FILENAME);
+		int[][] wetlandsData = FileOperator.readImage(WETLANDS_OUTPUT_FILENAME);
+		int[][] waterData = FileOperator.readImage(WATER_OUTPUT_FILENAME);
+		int[][] icecapData = FileOperator.readImage(ICECAP_OUTPUT_FILENAME);
+		
+		for (int x = 0; x < featureData.length; x++) {
+			for (int y = 0; y < featureData[x].length; y++) {
+				if(waterData[x][y] == OCEAN_COLOR || waterData[x][y] == SEA_COLOR || waterData[x][y] == INNER_SEA_COLOR || waterData[x][y] == LAKE_COLOR) {
+					if(icecapData[x][y] == ICECAP_COLOR || icecapData[x][y] == ICY_WATER_COLOR) {
+						featureData[x][y] = icecapData[x][y];
+					} else {
+						featureData[x][y] = waterData[x][y];
+					}
+				} else if(cliffData[x][y] == CLIFF_NORTH_COLOR || cliffData[x][y] == CLIFF_SOUTH_COLOR) {
+					featureData[x][y] = cliffData[x][y];
+				} else if(mountainData[x][y] == MOUNTAIN_COLOR) {
+					featureData[x][y] = mountainData[x][y];
+				} else if(hillData[x][y] == HILL_COLOR) {
+					featureData[x][y] = hillData[x][y];
+				} else if(wetlandsData[x][y] == WETLANDS_COLOR) {
+					featureData[x][y] = wetlandsData[x][y];
+				}
+			}
+		}
+		
+		FileOperator.writeImage(featureData, FEATURES_OUTPUT_FILENAME);
+		
+		for (int x = 0; x < featureData.length; x++) {
+			for (int y = 0; y < featureData[x].length; y++) {
+				boolean isFeature = false;
+				for(int kk=0;kk<ALL_FEATURES.length;kk++) {
+					if(featureData[x][y] == ALL_FEATURES[kk]) {
+						isFeature = true;
+					}
+				}
+				if(!isFeature) featureData[x][y] = NO_FEATURES;
+			}
+		}
+		
+		FileOperator.writeImage(featureData, FEATURES_RAW_OUTPUT_FILENAME);
+	}
 
 	public static void main(String[] args) {
-		int hillScope = 8;
-		int hillElevDiff = 16;
-		int minHillHeight = 80;
-		new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
+		//		int hillScope = 8;
+		//		int hillElevDiff = 16;
+		//		int minHillHeight = 80;
+		//		new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
+		//
+		//		int mountainScope = 3;
+		//		int mountainElevDiff = 32;
+		//		int minMountainHeight = 96;
+		//		int mountainSlope = 6;
+		//		new FeatureMapCreator().createMountainMap(mountainElevDiff, mountainScope, minMountainHeight, mountainSlope);
+		//
+		//		new FeatureMapCreator().createCliffMapSamples(2., 40);
+		
+//		new FeatureMapCreator().createCliffMap(2., 24, 20, 40);
 
-		int mountainScope = 3;
-		int mountainElevDiff = 32;
-		int minMountainHeight = 96;
-		int mountainSlope = 6;
-		new FeatureMapCreator().createMountainMap(mountainElevDiff, mountainScope, minMountainHeight, mountainSlope);
-
-		new FeatureMapCreator().createCliffMapSamples(2., 40);
-
-		new FeatureMapCreator().createFeaturesMap();
+//		new FeatureMapCreator().createWetlandMap(30);
+		
+//		new FeatureMapCreator().createWaterSampleMap(30);
+//		new FeatureMapCreator().createWaterSampleMap(60);
+//		new FeatureMapCreator().createWaterSampleMap(100);
+//		new FeatureMapCreator().createWaterSampleMap(240);
+		
+//		new FeatureMapCreator().createWaterMap();
+		
+//		new FeatureMapCreator().createIcecapMap(120);
+		
+		new FeatureMapCreator().createFeaturesMapFromIntermediates();
 	}
 }

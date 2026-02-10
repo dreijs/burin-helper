@@ -55,10 +55,11 @@ class RiverData {
 
 public class RiverProcessor {
 	// https://upload.wikimedia.org/wikipedia/commons/e/e5/Global_soils_map_USDA.jpg
-	public static final String BASE_MAP_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\elevation_map_samples\\threshold_00.png";
-	public static final String RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\river_data.csv";
-	public static final String SIMPLIFIED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\vector_output\\simplified_river_data.csv";
-	public static final String BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\elevation_map_samples\\rivers.png";
+	public static final String RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\input\\river_data.csv";
+	public static final String SIMPLIFIED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\map\\simplified_river_data.csv";
+	public static final String BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers.png";
+	
+	
 
 
 	public String filterRiverName(String s) {
@@ -68,7 +69,7 @@ public class RiverProcessor {
 		return s1;
 	}
 
-	public void simplifyRivers() {
+	public void reformatRiverData() {
 		try {
 			BufferedReader reader = new BufferedReader(new FileReader(RIVER_DATA_FILENAME));
 			BufferedWriter writer = new BufferedWriter(new FileWriter(SIMPLIFIED_RIVER_DATA_FILENAME));
@@ -97,6 +98,9 @@ public class RiverProcessor {
 					String[] s2 = s1b.split("\\)");
 					if(s2.length != 1 || s1b.charAt(s1b.length()-1) == ')') {
 						if(s2.length > 0) aggLine += s2[0];
+						
+						System.out.println(aggLine);
+						
 						String[] s3 = aggLine.split(", ");
 						if(s3.length > 0 && aggLine.length() > 0) {
 							for(int i=0;i<s3.length;i++) {
@@ -112,7 +116,7 @@ public class RiverProcessor {
 								}
 							}
 							RiverData data = new RiverData(cName, coords);
-							data.simplify(1000000);
+//							data.simplify(1000000);
 							if(proc>0) writer.write("\n");
 							writer.write(data.toString());
 							writer.flush();
@@ -137,80 +141,8 @@ public class RiverProcessor {
 		}
 	}
 
-	//	public void simplifyRivers() {
-	//		try {
-	//			BufferedReader reader = new BufferedReader(new FileReader(RIVER_DATA_FILENAME));
-	//			BufferedWriter writer = new BufferedWriter(new FileWriter(SIMPLIFIED_RIVER_DATA_FILENAME));
-	//
-	//			String line = reader.readLine(); // skip first line
-	//			String aggLine = "";
-	//			String cName = "";
-	//			List<Double> coords = new ArrayList<Double>();
-	//			int proc = 0;
-	//
-	//			double minLat = Double.POSITIVE_INFINITY;
-	//			double minLon = Double.POSITIVE_INFINITY;
-	//			double maxLat = Double.NEGATIVE_INFINITY;
-	//			double maxLon = Double.NEGATIVE_INFINITY;
-	//
-	//			while ((line = reader.readLine()) != null) {
-	//				String[] s0 = line.split("list\\(");
-	//				String[] s1 = line.split("c\\(");
-	//				if(s0.length > 1) {
-	//					String[] s2 = s0[0].split(",");
-	//					cName = filterRiverName(s2[6]);
-	//					s1 = s0[1].split("c\\(");
-	//				}
-	//
-	//				for(int j=0;j<s1.length;j++) {
-	//					String s1b = s1[j];
-	//					if(s1b.length() > 0) {
-	//						String[] s2 = s1b.split("\\)");
-	//						if(s2.length != 1 || s1b.charAt(s1b.length()-1) == ')') {
-	//							if(s2.length > 0) aggLine += s2[0];
-	//							String[] s3 = aggLine.split(", ");
-	//							if(s3.length > 0 && aggLine.length() > 0) {
-	//								for(int i=0;i<s3.length;i++) {
-	//									//									System.out.println(s3[i]);
-	//									double d = Double.parseDouble(s3[i]);
-	//									coords.add(d);
-	//									if(i < s3.length / 2) {
-	//										minLat = Math.min(minLat, d);
-	//										maxLat = Math.max(maxLat, d);
-	//									} else {
-	//										minLon = Math.min(minLon, d);
-	//										maxLon = Math.max(maxLon, d);
-	//									}
-	//								}
-	//								RiverData data = new RiverData(cName, coords);
-	//								data.simplify(1000000);
-	//								if(proc>0) writer.write("\n");
-	//								writer.write(data.toString());
-	//								writer.flush();
-	//								proc++;
-	//								System.out.println("*"+proc);
-	//								aggLine = "";
-	//								coords = new ArrayList<Double>();
-	//							}
-	//						} else {
-	//							aggLine += s2[0];
-	//						}
-	//					}
-	//				}
-	//			}
-	//			reader.close();
-	//
-	//			System.out.println(minLat+" "+minLon+" "+maxLat+" "+maxLon);
-	//
-	//			//            writer.write(dataToWrite);
-	//			writer.close();
-	//		} catch (IOException e) {
-	//			System.err.println("Error reading file: " + e.getMessage());
-	//		}
-	//	}
-
 	public void drawRivers() {
-		int[][] data = FileOperator.readImage(BASE_MAP_OUTPUT_FILENAME);
+		int[][] data = FileOperator.readImage(ElevationMapCreator.BASE_MAP_FILENAME);
 		int w = data.length;
 		int h = data[0].length;
 
@@ -235,7 +167,6 @@ public class RiverProcessor {
 				int lastX = -1;
 				int lastY = -1;
 				for(int i=1;i<lineData.length;i++) {
-					// -1.40912872440386E7 -6253856.36090267 1.79637592676961E7 8782793.20125636
 					String[] s1 = lineData[i].split("\\(");
 					String[] s2 = s1[1].split("\\)");
 					String[] s3 = s2[0].split(", ");
@@ -248,10 +179,6 @@ public class RiverProcessor {
 
 					lastX = x;
 					lastY = y;
-
-					//					System.out.println(x+" "+y);
-
-					//					data[x][h-y-1] = 0xFFFF0000;
 				}
 			}
 
@@ -268,7 +195,7 @@ public class RiverProcessor {
 	}
 
 	public static void main(String[] args) {
-		new RiverProcessor().simplifyRivers();
+		new RiverProcessor().reformatRiverData();
 		new RiverProcessor().drawRivers();
 	}
 }

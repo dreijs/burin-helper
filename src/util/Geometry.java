@@ -6,6 +6,35 @@ import java.util.List;
 public class Geometry {
 
 	public static final Double EPSILON = 1e-9;
+	
+	public static List<Point> getLine(int x0, int y0, int x1, int y1) {
+        List<Point> line = new ArrayList<>();
+        int dx = Math.abs(x1 - x0);
+        int dy = Math.abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1; // Step direction for x
+        int sy = y0 < y1 ? 1 : -1; // Step direction for y
+        int err = dx - dy; // Initial decision parameter (error)
+        int e2; // Used for decision making within the loop
+
+        while (true) {
+            line.add(new Point(x0, y0)); // Plot the current pixel
+
+            if (x0 == x1 && y0 == y1) {
+                break; // Reached the end point, exit loop
+            }
+
+            e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx; // Move in x direction
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy; // Move in y direction
+            }
+        }
+        return line;
+    }
 
 	public static boolean isEar(Point a, Point b, Point c, List<Point> vertices, boolean clockwise) {
 		// 1. Check if the vertex b is convex

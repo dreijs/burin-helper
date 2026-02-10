@@ -150,7 +150,7 @@ public class ElevationMapCreator {
 	public static void main(String[] args) {
 		new ElevationMapCreator().createBaseMap();
 		new ElevationMapCreator().createElevationMap();
-		new ElevationMapCreator().createSampleMaps();
+//		new ElevationMapCreator().createSampleMaps();
 	}
 
 }
