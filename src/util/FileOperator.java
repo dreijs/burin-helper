@@ -168,10 +168,10 @@ public class FileOperator {
 		}
 	}
 	
-	public static void finalPrintPolygons(List<Region> regions, String fileName, int width, int height) {
+	public static void finalPrintPolygons(List<Region> regions, String triangleFileName, String edgeFileName, int width, int height) {
 		try {
-			checkAndCreateDirectory(fileName);
-			BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
+			checkAndCreateDirectory(triangleFileName);
+			BufferedWriter writer = new BufferedWriter(new FileWriter(triangleFileName));
 			int maxDrawOrder = -1;
 			for(Region region : regions) if(region.drawOrder > maxDrawOrder) maxDrawOrder = region.drawOrder;
 

@@ -26,12 +26,11 @@ public class SoilMapCreator {
 	public static final int spodosol = new Color(199, 156, 193).getRGB(); 
 	public static final int ultisol = new Color(245, 233, 41).getRGB(); 
 	public static final int vertisol = new Color(80, 90, 150).getRGB(); 
-	public static final int rocky = new Color(209, 201, 194).getRGB(); 
-	public static final int shiftingSand = new Color(134, 125, 118).getRGB(); 
-	public static final int polarIce = new Color(198, 223, 255).getRGB(); 
+	public static final int rocky = new Color(134, 125, 118).getRGB(); 
+	public static final int shiftingSand = new Color(209, 201, 194).getRGB();
 
-	public static final int[] SPREADABLE_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand};
-	public static final int[] ALL_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand, polarIce};
+//	public static final int[] SPREADABLE_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand};
+	public static final int[] ALL_SOILS = {alfisol, andisol, aridisol, entisol, gelisol, histosol, inceptisol, mollisol, oxisol, spodosol, ultisol, vertisol, rocky, shiftingSand};
 
 	final static int LEFT_OFFSET = 0;
 	final static int RIGHT_OFFSET = 7;
@@ -40,7 +39,7 @@ public class SoilMapCreator {
 
 
 	public static void main(String[] args) {
-		MapOperator.fillByExtension(FileOperator.readImage(SOIL_BASE_MAP_FILENAME), ALL_SOILS, SPREADABLE_SOILS, 1, SOIL_FINAL_MAP_FILENAME);
+		MapOperator.fillByExtension(FileOperator.readImage(SOIL_BASE_MAP_FILENAME), ALL_SOILS, ALL_SOILS, 1, SOIL_FINAL_MAP_FILENAME);
 		MapOperator.graduallyRescaleMap(FileOperator.readImage(SOIL_FINAL_MAP_FILENAME), ALL_SOILS, ALL_SOILS, SOIL_FINAL_RESCALED_MAP_FILENAME);
 	}
 }

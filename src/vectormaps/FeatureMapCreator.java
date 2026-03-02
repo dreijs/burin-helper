@@ -30,6 +30,7 @@ public class FeatureMapCreator {
 	
 	public static final int WETLANDS_COLOR = new Color(0, 192, 128).getRGB(); 
 	public static final int HILL_COLOR = new Color(255, 128, 0).getRGB(); 
+	public static final int VALLEY_COLOR = new Color(255, 192, 0).getRGB(); 
 	public static final int MOUNTAIN_COLOR = new Color(255, 0, 0).getRGB(); 
 	public static final int CLIFF_NORTH_COLOR = new Color(192, 0, 0).getRGB(); 
 	public static final int CLIFF_SOUTH_COLOR = new Color(128, 0, 0).getRGB(); 
@@ -41,7 +42,7 @@ public class FeatureMapCreator {
 	public static final int ICECAP_COLOR = new Color(240, 248, 255).getRGB();
 	public static final int ICY_WATER_COLOR = new Color(200, 224, 255).getRGB();
 	
-	public static final int[] ALL_FEATURES = {NO_FEATURES, WETLANDS_COLOR, HILL_COLOR, MOUNTAIN_COLOR, CLIFF_NORTH_COLOR, CLIFF_SOUTH_COLOR, OCEAN_COLOR, SEA_COLOR, INNER_SEA_COLOR, LAKE_COLOR, ICECAP_COLOR, ICY_WATER_COLOR};
+	public static final int[] ALL_FEATURES = {NO_FEATURES, WETLANDS_COLOR, HILL_COLOR, VALLEY_COLOR, MOUNTAIN_COLOR, CLIFF_NORTH_COLOR, CLIFF_SOUTH_COLOR, OCEAN_COLOR, SEA_COLOR, INNER_SEA_COLOR, LAKE_COLOR, ICECAP_COLOR, ICY_WATER_COLOR};
 
 	public int[][] addWetlandData(int[][] baseData, int[][] elevationData, int[][] soilData, int d, int h) {
 		int[][] wetlandData = new int[baseData.length][baseData[0].length];
@@ -233,6 +234,8 @@ public class FeatureMapCreator {
 				hillData[x][y] = baseData[x][y];
 				int minElev = 255;
 				int maxElev = 0;
+				
+				boolean[][] surr = new boolean[3][3];
 
 				for(int dx = -w; dx <= w; dx++) {
 					for(int dy = -w; dy <= w; dy++) {
@@ -243,12 +246,27 @@ public class FeatureMapCreator {
 								int val = Colors.blueVal(elevationData[xx][yy]);
 								minElev = Math.min(minElev, val);
 								maxElev = Math.max(maxElev, val);
+								
+								if(elevationData[xx][yy] > elevationData[x][y]) surr[3*(dx+w)/(2*w+1)][3*(dy+w)/(2*w+1)] = true;
 							}
 						}
 					}
 				}
+				
+				int numSurr = 0;
+				for(int i=0;i<3;i++) {
+					for(int j=0;j<3;j++) {
+						if(surr[i][j]) numSurr++;
+					}
+				}
 
-				if(maxElev - minElev > d && Colors.blueVal(elevationData[x][y]) > 0 && maxElev > m) hillData[x][y] = HILL_COLOR; 
+				if(maxElev - minElev > d && Colors.blueVal(elevationData[x][y]) > 0 && maxElev > m) {
+					if(numSurr >= 9) {
+						hillData[x][y] = VALLEY_COLOR;
+					} else {
+						hillData[x][y] = HILL_COLOR;
+					}
+				}
 			}
 		}
 
@@ -431,8 +449,11 @@ public class FeatureMapCreator {
 		
 		for (int x = 0; x < featureData.length; x++) {
 			for (int y = 0; y < featureData[x].length; y++) {
-				if(waterData[x][y] == OCEAN_COLOR || waterData[x][y] == SEA_COLOR || waterData[x][y] == INNER_SEA_COLOR || waterData[x][y] == LAKE_COLOR) {
-					if(icecapData[x][y] == ICECAP_COLOR || icecapData[x][y] == ICY_WATER_COLOR) {
+				if(icecapData[x][y] == ICECAP_COLOR) {
+					featureData[x][y] = icecapData[x][y];
+				}
+				else if(waterData[x][y] == OCEAN_COLOR || waterData[x][y] == SEA_COLOR || waterData[x][y] == INNER_SEA_COLOR || waterData[x][y] == LAKE_COLOR) {
+					if(icecapData[x][y] == ICY_WATER_COLOR) {
 						featureData[x][y] = icecapData[x][y];
 					} else {
 						featureData[x][y] = waterData[x][y];
@@ -441,7 +462,7 @@ public class FeatureMapCreator {
 					featureData[x][y] = cliffData[x][y];
 				} else if(mountainData[x][y] == MOUNTAIN_COLOR) {
 					featureData[x][y] = mountainData[x][y];
-				} else if(hillData[x][y] == HILL_COLOR) {
+				} else if(hillData[x][y] == HILL_COLOR || hillData[x][y] == VALLEY_COLOR) {
 					featureData[x][y] = hillData[x][y];
 				} else if(wetlandsData[x][y] == WETLANDS_COLOR) {
 					featureData[x][y] = wetlandsData[x][y];
@@ -467,10 +488,10 @@ public class FeatureMapCreator {
 	}
 
 	public static void main(String[] args) {
-		//		int hillScope = 8;
-		//		int hillElevDiff = 16;
-		//		int minHillHeight = 80;
-		//		new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
+//				int hillScope = 6;
+//				int hillElevDiff = 20;
+//				int minHillHeight = 80;
+//				new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
 		//
 		//		int mountainScope = 3;
 		//		int mountainElevDiff = 32;
@@ -491,7 +512,7 @@ public class FeatureMapCreator {
 		
 //		new FeatureMapCreator().createWaterMap();
 		
-//		new FeatureMapCreator().createIcecapMap(120);
+//		new FeatureMapCreator().createIcecapMap(150);
 		
 		new FeatureMapCreator().createFeaturesMapFromIntermediates();
 	}
