@@ -438,7 +438,7 @@ public class PolygonCreator {
 			// determine if order is clockwise or counterclockwise
 			boolean clockwise = Geometry.calculatePolygonSignedArea(vertices) < 0;
 
-			for (int i=vertices.size()-1;i>=0;i--) {
+			for (int i=vertices.size()-1;i>=0 && vertices.size() > 2;i--) {
 
 				int prev = (i == 0) ? vertices.size() - 1 : i - 1;
 				int next = (i == vertices.size() - 1) ? 0 : i + 1;
@@ -870,7 +870,7 @@ public class PolygonCreator {
 //		processMap(mapData, POLYGONS_FINAL_FILENAME);
 //	}
 
-	void processMap(int[][] mapData, String triangleFileName, String edgeFileName) {
+	void processMap(int[][] mapData, String triangleFileName, String edgeFileName, String pointFileName) {
 		initAndPruneMap(mapData);
 
 		List<Region> regions = loadConnectedPolygons();
@@ -881,34 +881,28 @@ public class PolygonCreator {
 
 		FileOperator.printRegionListToFile(regions, POLYGONS_ORDERED_FILENAME);
 
-		//		for(int i=0;i<3;i++) {
-		//			filterSmallRegions(regions, 20000, mapData.length, mapData[0].length);
-		//			System.out.println("done: filtered small regions");
-		//			System.out.println(getTotalnumPoints(regions));
-		//		}
-
-		simplifyDouglasPeucker(regions, 20);
-		System.out.println("done: simplify using Douglas-Peucker");
-		System.out.println(getTotalnumPoints(regions));
-
-		FileOperator.printRegionListToFile(regions, POLYGONS_FILTERED_FILENAME);
+//		simplifyDouglasPeucker(regions, 20);
+//		System.out.println("done: simplify using Douglas-Peucker");
+//		System.out.println(getTotalnumPoints(regions));
+//
+//		FileOperator.printRegionListToFile(regions, POLYGONS_FILTERED_FILENAME);
 
 		determineTriangleDrawOrders(regions);
 		System.out.println("done: determine triangle draw order");
 
-		FileOperator.finalPrintPolygons(regions, triangleFileName, edgeFileName, mapData.length, mapData[0].length);
+		FileOperator.finalPrintPolygons(regions, triangleFileName, edgeFileName, pointFileName, mapData.length, mapData[0].length);
 	}
 
 	public void runSample() {
 		int scale = 8;
-		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt");
+		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Points_0_0.txt");
 	}
 
 	public void runAll() {
 		int scale, w, h; // w number of longitude regions, h number of latitude regions 
 		// zoom level 1
 		scale = 8;
-		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt");
+		new PolygonCreator().processMap(mergeMapData(scale), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Points_0_0.txt");
 
 		// zoom level 2
 		scale = 4;
@@ -916,7 +910,7 @@ public class PolygonCreator {
 		h = 4;
 		for(int y=0;y<h;y++) {
 			for(int x=0;x<w;x++) {
-				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt");
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Points_"+x+"_"+y+".txt");
 			}
 		}
 
@@ -926,7 +920,7 @@ public class PolygonCreator {
 		h = 8;
 		for(int y=0;y<h;y++) {
 			for(int x=0;x<w;x++) {
-				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt");
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Points_"+x+"_"+y+".txt");
 			}
 		}
 
@@ -936,7 +930,7 @@ public class PolygonCreator {
 		h = 16;
 		for(int y=0;y<h;y++) {
 			for(int x=0;x<w;x++) {
-				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_0_0.txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_0_0.txt");
+				new PolygonCreator().processMap(mergeMapData(scale, 21600/w * x, 10800/h * y, 21600/w * (x+1), 10800/h * (y+1)), OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Triangles_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Edges_"+x+"_"+y+".txt", OUTPUT_FOLDER_NAME+"\\Scale_"+scale+"\\Points_"+x+"_"+y+".txt");
 			}
 		}
 	}
