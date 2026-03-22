@@ -3,9 +3,32 @@ package util;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.awt.geom.Area;
+import java.awt.geom.FlatteningPathIterator;
+import java.awt.geom.PathIterator;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Point2D;
+
+//import net.sf.geographiclib.Geodesic;
+//import net.sf.geographiclib.PolygonArea;
+//import net.sf.geographiclib.PolygonResult;
+
 public class Geometry {
 
 	public static final Double EPSILON = 1e-9;
+	
+	public static boolean isNonIntersectingPolygon(List<Point> points) {
+		int n = points.size();
+		for(int i=0;i<n;i++) {
+			int ii = (i+1)%n;
+			for(int j=0;j<n;j++) {
+				int jj = (j+1)%n;
+				
+				if(doSegmentsIntersect(points.get(i), points.get(ii), points.get(j), points.get(jj))) return false;
+			}
+		}
+		return true;
+	}
 	
 	public static List<Point> getLine(int x0, int y0, int x1, int y1) {
         List<Point> line = new ArrayList<>();
@@ -121,7 +144,6 @@ public class Geometry {
         return false; // Doesn't fall in any of the above cases
     }
 
-
 	public static double perpendicularDistance(Point point, Point lineStart, Point lineEnd) {
 		double lineLengthSquared = Math.pow(lineEnd.x - lineStart.x, 2) + Math.pow(lineEnd.y - lineStart.y, 2);
 
@@ -160,6 +182,54 @@ public class Geometry {
     public static double calculatePolygonArea(List<Point> vertices) {
         return Math.abs(calculatePolygonSignedArea(vertices));
     }
+    
+    public static double polygonArea(List<Point> vertices) {
+    	GeneralPath path = new GeneralPath();
+        if (vertices.size() < 3) return 0.0;
+
+        path.moveTo(vertices.get(0).x, vertices.get(0).y);
+        for (int i = 1; i < vertices.size(); i++) {
+            path.lineTo(vertices.get(i).x, vertices.get(i).y);
+        }
+        path.closePath();
+
+        // Area constructor handles decomposition internally
+        Area area = new Area(path);
+        PathIterator iterator = new FlatteningPathIterator(area.getPathIterator(null), 0.01);
+        
+        return getAreaFromIterator(iterator);
+    }
+
+    // Calculates area using the shoelace formula on decomposed segments
+    private static double getAreaFromIterator(PathIterator i) {
+        double area = 0.0;
+        double[] coords = new double[6];
+        double startX = 0, startY = 0, currentX = 0, currentY = 0;
+
+        while (!i.isDone()) {
+            int segType = i.currentSegment(coords);
+            if (segType == PathIterator.SEG_MOVETO) {
+                startX = coords[0]; startY = coords[1];
+                currentX = startX; currentY = startY;
+            } else if (segType == PathIterator.SEG_LINETO) {
+                area += currentX * coords[1] - coords[0] * currentY;
+                currentX = coords[0]; currentY = coords[1];
+            } else if (segType == PathIterator.SEG_CLOSE) {
+                area += currentX * startY - startX * currentY;
+            }
+            i.next();
+        }
+        return Math.abs(area / 2.0);
+    }
+
+//    public static void main(String[] args) {
+//        Point2D[] testPoly = {
+//            new Point2D.Double(0, 0), new Point2D.Double(0, 2),
+//            new Point2D.Double(2, 2), new Point2D.Double(2, 0),
+//            new Point2D.Double(1, 1), new Point2D.Double(0, 0)
+//        };
+//        System.out.println("Area: " + calculateArea(testPoly));
+//    }
 
 	// https://stackoverflow.com/questions/2861272/polygon-area-calculation-using-latitude-and-longitude-generated-from-cartesian-s
     // output: square kilometers
@@ -187,7 +257,6 @@ public class Geometry {
 
 		return Math.abs(area);
 	}
-
 	public static double calculatePolygonAreaGlobe(List<Point> coordinates, int w, int h)
 	{
 		double area = 0;

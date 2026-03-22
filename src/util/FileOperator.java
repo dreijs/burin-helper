@@ -18,7 +18,7 @@ import javax.imageio.ImageIO;
 class IntBoolAsIntPair {
 	int i;
 	int b;
-	
+
 	IntBoolAsIntPair(int ii, int bb) {
 		i = ii;
 		b = bb;
@@ -31,10 +31,10 @@ public class FileOperator {
 		// depending on Windows or macOS, flip the slashes
 
 		// Windows:
-				return x;
+		return x;
 
 		// macOS:
-//		return x.replace('\\', '/');
+		//		return x.replace('\\', '/');
 	}
 
 
@@ -42,7 +42,7 @@ public class FileOperator {
 	public static int[][] readImage(String fileName) {
 		return readImage(fileName, 1);
 	}
-	
+
 	public static int[][] readImage(String fileName, int scale) {
 		return readImage(fileName, scale, 0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
 	}
@@ -53,12 +53,12 @@ public class FileOperator {
 
 		try {
 			src = ImageIO.read(new File(updateFileName(fileName)));
-			
+
 			int w = (Math.min(src.getWidth(), maxX) - minX)/scale;
 			int h = (Math.min(src.getHeight() ,maxY) - minY)/scale;
-			
+
 			result = new int[w][h];
-			
+
 			for(int j=0;j<h;j++) {
 				for(int i=0;i<w;i++) {
 					if(scale == 1) {
@@ -84,14 +84,14 @@ public class FileOperator {
 					}
 				}
 			}
-			
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		return result;
 	}
-	
+
 	public static int[][] readImageMix(String fileName, int scale) {
 		int[][] result = null;
 		BufferedImage src;
@@ -123,7 +123,7 @@ public class FileOperator {
 		}
 		return result;
 	}
-	
+
 	public static void checkAndCreateDirectory(String fileName) throws IOException {
 		Path path = Paths.get(fileName);
 		Files.createDirectories(path.getParent());
@@ -177,21 +177,21 @@ public class FileOperator {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public static void addEdgeAdjacent(List<List<Integer>> adjacents, int edge, int triangle) {
 		if(adjacents.size() <= edge) {
 			for(int i=0;i<=edge - adjacents.size();i++) adjacents.add(new ArrayList<Integer>());
 		}
 		adjacents.get(edge).add(triangle);
 	}
-	
+
 	public static void addPointAdjacent(List<List<Integer>> adjacents, int point, int triangle) {
 		if(adjacents.size() <= point) {
 			for(int i=0;i<=point - adjacents.size();i++) adjacents.add(new ArrayList<Integer>());
 		}
 		adjacents.get(point).add(triangle);
 	}
-	
+
 	public static IntBoolAsIntPair checkAndAddEdge(List<String> list, Map<String,Integer> reverseMap, int p1, int p2) {
 		String s1 = p1+","+p2;
 		if(reverseMap.containsKey(s1)) {
@@ -206,7 +206,7 @@ public class FileOperator {
 		reverseMap.put(s1, idx);
 		return new IntBoolAsIntPair(idx, 1);
 	}
-	
+
 	public static int checkAndAddPoint(List<String> list, Map<String,Integer> reverseMap, int x, int y) {
 		String s = x+","+y;
 		if(reverseMap.containsKey(s)) {
@@ -231,7 +231,7 @@ public class FileOperator {
 			Map<String,Integer> edgeReverseMap = new HashMap<String,Integer>();
 			List<List<Integer>> pointAdjacents = new ArrayList<List<Integer>>();
 			Map<String,Integer> pointReverseMap = new HashMap<String,Integer>();
-			
+
 			int triangle = 0;
 
 			for(int d=maxDrawOrder;d>=0;d--) {
@@ -257,26 +257,26 @@ public class FileOperator {
 										int p1i = checkAndAddPoint(points, pointReverseMap, p1.x * 4096 / width, p1.y * 4096 / height);
 										int p2i = checkAndAddPoint(points, pointReverseMap, p2.x * 4096 / width, p2.y * 4096 / height);
 										int p3i = checkAndAddPoint(points, pointReverseMap, p3.x * 4096 / width, p3.y * 4096 / height);
-										
+
 										addPointAdjacent(pointAdjacents, p1i, triangle);
 										addPointAdjacent(pointAdjacents, p2i, triangle);
 										addPointAdjacent(pointAdjacents, p3i, triangle);
-										
+
 										IntBoolAsIntPair edge1 = checkAndAddEdge(edges, edgeReverseMap, p1i, p2i);
 										IntBoolAsIntPair edge2 = checkAndAddEdge(edges, edgeReverseMap, p2i, p3i);
 										IntBoolAsIntPair edge3 = checkAndAddEdge(edges, edgeReverseMap, p3i, p1i);
-										
+
 										if(triangle > 0) writer.write("\n");
-										
+
 										addEdgeAdjacent(edgeAdjacents, edge1.i, triangle);
 										addEdgeAdjacent(edgeAdjacents, edge2.i, triangle);
 										addEdgeAdjacent(edgeAdjacents, edge3.i, triangle);
 
 										writer.write(edge1.i+","+edge2.i+","+edge3.i+","+edge1.b+","+edge2.b+","+edge3.b);
 										if(z2 == 0) writer.write(","+region.colorData);
+										z2++;
 										vertices.remove(i);
 										triangle++;
-										z2++;
 									}
 
 									z1++;
@@ -287,20 +287,18 @@ public class FileOperator {
 				}
 			}
 			writer.close();
-			
+
 			writer = new BufferedWriter(new FileWriter(edgeFileName));
 			for(int i=0;i<edges.size();i++) {
 				if(i > 0) writer.write("\n");
 				writer.write(edges.get(i));
 
-				writer.write(","+edgeAdjacents.get(i).get(0));
-				if(edgeAdjacents.get(i).size() > 1) writer.write(","+edgeAdjacents.get(i).get(1));
-				else writer.write(",-1");
-				
-				if(edgeAdjacents.get(i).size() > 2) System.out.println("Error! Too many triangles adjacent to edge");
+				for(int j=0;j<edgeAdjacents.get(i).size();j++) {
+					writer.write(","+edgeAdjacents.get(i).get(j));
+				}
 			}
 			writer.close();
-			
+
 			writer = new BufferedWriter(new FileWriter(pointFileName));
 			for(int i=0;i<points.size();i++) {
 				if(i > 0) writer.write("\n");
