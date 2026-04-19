@@ -71,13 +71,13 @@ public class MapOperator {
 	}
 
 	public static double pixelSize(int x, int y, int w, int h) {
-		Point p1 = new Point(x,y);
-		Point p2 = new Point(x+1,y);
-		Point p3 = new Point(x+1,y+1);
-		Point p4 = new Point(x,y+1);
+		PointInt p1 = new PointInt(x,y);
+		PointInt p2 = new PointInt(x+1,y);
+		PointInt p3 = new PointInt(x+1,y+1);
+		PointInt p4 = new PointInt(x,y+1);
 		List<Point> coords = new ArrayList<Point>();
 		coords.add(p1); coords.add(p2); coords.add(p3); coords.add(p4);
-		return Geometry.calculatePolygonAreaGlobe(coords, w, h);
+		return GeometryUtils.calculatePolygonAreaGlobe(coords, w, h);
 	}
 
 

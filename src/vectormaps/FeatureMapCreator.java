@@ -8,9 +8,10 @@ import java.util.List;
 
 import util.Colors;
 import util.FileOperator;
-import util.Geometry;
+import util.GeometryUtils;
 import util.MapOperator;
 import util.Point;
+import util.PointInt;
 
 public class FeatureMapCreator {
 	public static final String ICECAP_INPUT_FILENAME = System.getProperty("user.dir")+"\\input\\icecap1ce_filtered.png";
@@ -58,7 +59,7 @@ public class FeatureMapCreator {
 		}
 
 		try {
-			BufferedReader reader = new BufferedReader(new FileReader(RiverProcessor.SIMPLIFIED_RIVER_DATA_FILENAME));
+			BufferedReader reader = new BufferedReader(new FileReader(RiverProcessor.REFORMATTED_RIVER_DATA_FILENAME));
 
 			String line;
 
@@ -78,8 +79,9 @@ public class FeatureMapCreator {
 					int xb = (int) (baseData.length * (Long.parseLong(s3b[0]) + 180000000) / 360000000);
 					int yb = (int) (baseData[0].length * (Long.parseLong(s3b[1]) + 90000000) / 180000000);
 
-					List<Point> points = Geometry.getLine(xa, baseData[0].length - ya - 1, xb, baseData[0].length - yb - 1);
-					for(Point p : points) {
+					List<Point> points = GeometryUtils.getLine(xa, baseData[0].length - ya - 1, xb, baseData[0].length - yb - 1);
+					for(Point pp : points) {
+						PointInt p = pp.asIntPoint();
 						if(wetlandData[p.x][p.y] != ElevationMapCreator.GREEN) wetlandData[p.x][p.y] = WETLANDS_COLOR;
 					}
 				}
@@ -488,31 +490,31 @@ public class FeatureMapCreator {
 	}
 
 	public static void main(String[] args) {
-//				int hillScope = 6;
-//				int hillElevDiff = 20;
-//				int minHillHeight = 80;
-//				new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
-		//
-		//		int mountainScope = 3;
-		//		int mountainElevDiff = 32;
-		//		int minMountainHeight = 96;
-		//		int mountainSlope = 6;
-		//		new FeatureMapCreator().createMountainMap(mountainElevDiff, mountainScope, minMountainHeight, mountainSlope);
-		//
-		//		new FeatureMapCreator().createCliffMapSamples(2., 40);
+				int hillScope = 6;
+				int hillElevDiff = 20;
+				int minHillHeight = 80;
+				new FeatureMapCreator().createHillMap(hillElevDiff, hillScope, minHillHeight);
 		
-//		new FeatureMapCreator().createCliffMap(2., 24, 20, 40);
+				int mountainScope = 3;
+				int mountainElevDiff = 32;
+				int minMountainHeight = 96;
+				int mountainSlope = 6;
+				new FeatureMapCreator().createMountainMap(mountainElevDiff, mountainScope, minMountainHeight, mountainSlope);
+		
+//				new FeatureMapCreator().createCliffMapSamples(2., 40);
+		
+		new FeatureMapCreator().createCliffMap(2., 24, 20, 40);
 
-//		new FeatureMapCreator().createWetlandMap(30);
+		new FeatureMapCreator().createWetlandMap(30);
 		
 //		new FeatureMapCreator().createWaterSampleMap(30);
 //		new FeatureMapCreator().createWaterSampleMap(60);
 //		new FeatureMapCreator().createWaterSampleMap(100);
 //		new FeatureMapCreator().createWaterSampleMap(240);
 		
-//		new FeatureMapCreator().createWaterMap();
+		new FeatureMapCreator().createWaterMap();
 		
-//		new FeatureMapCreator().createIcecapMap(150);
+		new FeatureMapCreator().createIcecapMap(150);
 		
 		new FeatureMapCreator().createFeaturesMapFromIntermediates();
 	}

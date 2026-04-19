@@ -3,6 +3,7 @@ package util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class Region {
 	public int regionIdx;
@@ -10,7 +11,8 @@ public class Region {
 	public int drawOrder;
 	public byte[] triangleDrawOrder;
 	public List<Point> polygon;
-	public List<Integer> opposingRegions; // opposingRegionss.get(i) is the opposing region of the edge between point i and point (i + 1) % n
+	public List<Integer> opposingRegions; // opposingRegions.get(i) is the opposing region of the edge between point i and point (i + 1) % n. If negative, corresponds to the terrain data - 2 (-1 corresponds to outside the map)
+	public List<Integer> opposingRivers; // 
 	public List<Integer> outerNeighbors;
 	public List<Integer> innerNeighbors;
 
@@ -20,8 +22,184 @@ public class Region {
 		this.triangleDrawOrder = new byte[] {};
 		this.polygon = new ArrayList<Point>();
 		this.opposingRegions = new ArrayList<Integer>();
+		this.opposingRivers = new ArrayList<Integer>();
 		this.outerNeighbors = new ArrayList<Integer>();
 		this.innerNeighbors = new ArrayList<Integer>();
+	}
+
+	public void resetRiverData() {
+		this.opposingRivers = new ArrayList<Integer>();
+		for(int i=0;i<this.polygon.size();i++) {
+			this.opposingRivers.add(-1);
+		}
+	}
+
+	public void matchNeighbors(List<Point> newPolygon, List<Point> oldPolygon, List<Integer> newIndices, List<Integer> oldIndices, boolean trace) {
+		int jStart = 0;
+		int direction = 1;
+		int n = oldPolygon.size();
+		for(int i=0;i<newPolygon.size();i++) {
+			if(trace) System.out.println("i: "+i);
+			boolean found = false;
+			boolean changedDirection = false;
+//			for(int j = Math.floorMod(jStart + direction, n); !found && (j != jStart); j = Math.floorMod(j + direction, n)) {
+			for(int j=0;j<n;j++) {
+				int ii, jj;
+				ii = (i+1) % newPolygon.size();
+				if(direction > 0) {
+					jj = (j+1) % oldPolygon.size();
+				} else {
+					jj = j>0?j-1:oldPolygon.size()-1;
+				}
+				
+				if(trace) System.out.println(i+" "+j+" "+newPolygon.get(i)+" -- "+newPolygon.get(ii)+" vs "+oldPolygon.get(j)+" -- "+oldPolygon.get(jj)+" "+GeometryUtils.sharesSegmentWith(newPolygon.get(i), newPolygon.get(ii), oldPolygon.get(j), oldPolygon.get(jj), 0.001, 0.001, trace));
+
+				if(GeometryUtils.sharesSegmentWith(newPolygon.get(i), newPolygon.get(ii), oldPolygon.get(j), oldPolygon.get(jj), 0.001, 0.001, false)) {
+					if(trace) System.out.println("found!");
+					if(direction > 0) {
+						newIndices.set(i, oldIndices.get(j));
+					} else {
+						newIndices.set(i, oldIndices.get(jj));
+					}
+					found = true;
+//					jStart = j;
+				} 
+//				else {
+//					if(!changedDirection) {
+//						direction = direction>0?-1:1;
+//						changedDirection = true;
+//					}
+//				}
+			}
+//			if(trace) {
+//				if(found) System.out.println("found");
+//				else System.out.println("not found");
+//			}
+		}
+	}
+
+	public void extendBasedOnPolygon(List<Point> newPolygon, List<List<Point>> intersectingRiverData, List<Integer> riverIndices) {
+//		if(regionIdx == 161) {
+//			System.out.println("---"+regionIdx);
+//			System.out.println(polygon);
+//			System.out.println(opposingRegions);
+//			System.out.println(opposingRivers);
+//			System.out.println(newPolygon);
+//			System.out.println(intersectingRiverData);
+//			System.out.println(riverIndices);
+//		}
+
+		List<Integer> newOppRegions = new ArrayList<Integer>();
+		List<Integer> newOppRivers = new ArrayList<Integer>();
+		for(int i=0;i<newPolygon.size();i++) {
+			newOppRegions.add(regionIdx);
+			newOppRivers.add(-1);
+		}
+
+		matchNeighbors(newPolygon, polygon, newOppRegions, opposingRegions, false);
+		for(int i=0;i<intersectingRiverData.size();i++) {
+			List<Integer> rivers = new ArrayList<Integer>();
+			for(int j=0;j<intersectingRiverData.get(i).size();j++) rivers.add(riverIndices.get(i));
+			matchNeighbors(newPolygon, intersectingRiverData.get(i), newOppRivers, rivers, false);
+		}
+
+		this.polygon = newPolygon;
+		this.opposingRegions = newOppRegions;
+		this.opposingRivers = newOppRivers;
+		
+//		if(regionIdx == 161) {
+//			System.out.println("---"+regionIdx);
+//			System.out.println(polygon);
+//			System.out.println(opposingRegions);
+//			System.out.println(opposingRivers);
+//		}
+		
+		//
+		//		// the ordering of the points in the new polygon may be reversed, so check first: this is important to preserve the neighbor relation
+		//		int sameOrder = 0;
+		//		int start1 = -1;
+		//		int start2 = -1;
+		//		for(int i=0;i<polygon.size();i++) {
+		//			for(int j=0;j<points.size();j++) {
+		//				if(polygon.get(i).equals(points.get(j))) {
+		//					int imin = i>0?i-1:polygon.size()-1;
+		//					int iplus = (i+1) % polygon.size();
+		//					int jmin = j>0?j-1:points.size()-1;
+		//					int jplus = (j+1) % points.size();
+		//					if(polygon.get(iplus).equals(points.get(jplus)) || polygon.get(imin).equals(points.get(jmin))) {
+		//						sameOrder = 1;
+		//					} else if(polygon.get(iplus).equals(points.get(jmin)) || polygon.get(imin).equals(points.get(jplus))) {
+		//						sameOrder = -1;
+		//					}
+		//					if(start1 < 0) {
+		//						start1 = i;
+		//						start2 = j;
+		//					}
+		//				}
+		//			}
+		//		}
+		//
+		//		List<Point> newPolygon = new ArrayList<Point>();;
+		//		List<Integer> newOppRegions = new ArrayList<Integer>();
+		//		List<Integer> newOppRivers = new ArrayList<Integer>();;
+		//
+		//		int i = start2;
+		//		int j = start1;
+		//		int toGo = points.size();
+		//
+		//		System.out.println(sameOrder);
+		//
+		//		while(toGo > 0) {
+		//			newPolygon.add(points.get(i));
+		//
+		//			if(polygon.get(j).equals(points.get(i))) {
+		//				if(sameOrder > 0) {
+		//					newOppRegions.add(this.opposingRegions.get(j));
+		//					newOppRivers.add(-1);
+		//					j = (j+1) % polygon.size();
+		//				} else {
+		//					int jj = j>0?j-1:polygon.size()-1;
+		//					newOppRegions.add(this.opposingRegions.get(jj));
+		//					newOppRivers.add(-1);
+		//					j = jj;
+		//				}
+		//			} else {
+		//				newOppRegions.add(regionIdx);
+		//				//				newOppRivers.add(riverIdx);
+		//			}
+		//
+		//			i = (i+1) % points.size();
+		//			toGo--;
+		//		}
+		//
+		//		this.polygon = newPolygon;
+		//		this.opposingRegions = newOppRegions;
+		//		this.opposingRivers = newOppRivers;
+	}
+	
+	public Region splitFromPolygon(List<Point> newPolygon, List<List<Point>> intersectingRiverData, List<Integer> riverIndices, int idx) {
+		Region result = new Region(idx);
+		List<Integer> newOppRegions = new ArrayList<Integer>();
+		List<Integer> newOppRivers = new ArrayList<Integer>();
+		for(int i=0;i<newPolygon.size();i++) {
+			newOppRegions.add(regionIdx);
+			newOppRivers.add(-1);
+		}
+
+		matchNeighbors(newPolygon, polygon, newOppRegions, opposingRegions, false);
+		for(int i=0;i<intersectingRiverData.size();i++) {
+			List<Integer> rivers = new ArrayList<Integer>();
+			for(int j=0;j<intersectingRiverData.get(i).size();j++) rivers.add(riverIndices.get(i));
+			matchNeighbors(newPolygon, intersectingRiverData.get(i), newOppRivers, rivers, false);
+		}
+
+		result.polygon = newPolygon;
+		result.opposingRegions = newOppRegions;
+		result.opposingRivers = newOppRivers;
+		result.colorData = this.colorData;
+		result.drawOrder = this.drawOrder;
+		
+		return result;
 	}
 
 	public void setDrawOrder(int drawOrder) {
@@ -92,6 +270,7 @@ public class Region {
 	public void clear() {
 		this.polygon = new ArrayList<Point>();
 		this.opposingRegions = new ArrayList<Integer>();
+		this.opposingRivers = new ArrayList<Integer>();
 		this.outerNeighbors = new ArrayList<Integer>();
 		this.innerNeighbors = new ArrayList<Integer>();
 		//		System.out.println("clear region "+this.regionIdx);
@@ -137,13 +316,8 @@ public class Region {
 		// segment not found: probably internal
 		return null;
 	}
-	
+
 	public int[] getSegmentIndices(Point[] points) {
-//		int r1 = 57219;
-//		int r2 = 57217;
-//		boolean print = (regionIdx == r1 || regionIdx == r2);
-//		if(print) System.out.println("*+*+* "+regionIdx+" "+Arrays.toString(points));
-		
 		// check if p1 comes first
 		int idx1 = -1;
 		int idx2 = -1;
@@ -162,8 +336,6 @@ public class Region {
 				if(idx2 < 0 && (nn >= points.length || !polygon.get(i).equals(points[nn]))) idx1 = -1;
 			}
 		}
-		
-//		if(print) System.out.println("final"+idx1+" "+idx2);
 
 		if(idx2 >= 0) {
 			return new int[] {idx1, idx2};
@@ -198,16 +370,16 @@ public class Region {
 		int n = polygon.size();
 		for (int i = indices[1] % n; i != indices[0]; i = (i+1) % n) {
 			int j = (i + 1) % n;
-			if(Geometry.doSegmentsIntersect(polygon.get(i), polygon.get(j), polygon.get(indices[0]), polygon.get(indices[1]))) {
+			if(GeometryUtils.doSegmentsIntersect(polygon.get(i), polygon.get(j), polygon.get(indices[0]), polygon.get(indices[1]))) {
 				return false;
 			}
 		}
 		return true;
 	}
-	
+
 	public Point[] getSegmentPoints(int[] indices, int oppRegion) {
-		if(indices == null) return new Point[] {};
-		
+		if(indices == null) return new PointInt[] {};
+
 		List<Point> points = new ArrayList<Point>();
 
 		if(indices[1] > indices[0]) {
@@ -222,35 +394,25 @@ public class Region {
 				points.add(polygon.get(i)); 
 			}
 		}
-		
+
 		return points.toArray(new Point[0]);
 	}
 
 	public void removeSegment(int[] indices, int oppRegion) {
-//		int r1 = 57219;
-//		int r2 = 57217;
-//		boolean print = (regionIdx == r1 && oppRegion == r2) || (regionIdx == r2 && oppRegion == r1);
-//		
-//		if(print) System.out.println(this);
-		
+
 		if(indices == null) return;
-		
-//		if(print) System.out.println(regionIdx+": "+indices[0]+" to "+indices[1] +" ("+oppRegion+")");
 
 		if(indices[1] > indices[0]) {
 			for (int i = indices[1]-1; i != indices[0];i--) {
-//				if(print) System.out.println(regionIdx+" !remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
 		} else {
 			for (int i = polygon.size()-1; i != indices[0];i--) {
-//				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
 			for (int i = indices[1]-1; i >= 0;i--) {
-//				if(print) System.out.println(regionIdx+" *remove "+polygon.get(i)+" "+opposingRegions.get(i));
 				polygon.remove(i); 
 				opposingRegions.remove(i); 
 			}
@@ -319,8 +481,11 @@ public class Region {
 		for(int k=0;k<polygon.size();k++) {
 			Point p = polygon.get(k);
 			int idx = -2;
+			int idx2 = -1;
 			if(k < opposingRegions.size()) idx = opposingRegions.get(k);
-			s += ("("+p.x+","+p.y+","+idx+")");
+			if(k < opposingRivers.size()) idx2 = opposingRivers.get(k);
+			if(idx2 >= 0) s += ("("+p.xInt()+","+p.yInt()+","+idx+",&"+idx2+")");
+			else s += ("("+p.xInt()+","+p.yInt()+","+idx+")");
 			if(k<polygon.size()-1) s += (", ");
 		}
 		return s;
