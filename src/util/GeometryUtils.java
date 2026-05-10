@@ -8,10 +8,13 @@ import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 
 import util.GeometryUtils;
+import vectormaps.PolygonCreator;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.awt.Rectangle;
 import java.awt.geom.Area;
 import java.awt.geom.FlatteningPathIterator;
@@ -23,6 +26,18 @@ import java.awt.geom.Rectangle2D;
 //import net.sf.geographiclib.Geodesic;
 //import net.sf.geographiclib.PolygonArea;
 //import net.sf.geographiclib.PolygonResult;
+
+
+
+class LineStringAndAngle {
+	LineString c;
+	double angle;
+	
+	LineStringAndAngle(LineString c, double angle) {
+		this.c = c;
+		this.angle = angle;
+	}
+}
 
 public class GeometryUtils {
 
@@ -140,7 +155,7 @@ public class GeometryUtils {
 		if((f1 < -threshold2 && f2 < -threshold2) || (f1 > 1+threshold2 && f2 > 1+threshold2)) return false;
 		return true;
 	}
-	
+
 	public static int orientation(Point p, Point q, Point r) {
 		return orientation(p, q, r, EPSILON, EPSILON);
 	}
@@ -522,9 +537,31 @@ public class GeometryUtils {
 		Coordinate[] polyCoords = polyCoordList.toArray(new Coordinate[0]);
 		return polyCoords;
 	}
+	
+	static List<Point> polygonToPointList(Polygon polygon) {
+		List<Point> pointList = new ArrayList<Point>();
+		LinearRing ring = polygon.getExteriorRing();
+		for(int i=0;i<ring.getNumPoints();i++) {
+			Coordinate c = ring.getCoordinateN(i);
+			pointList.add(new PointFloat(c.x, c.y));
+		}
+		
+		return pointList;
+	}
 
 	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines) {
 		return splitPolygon(polygonPoints, lines, 0);
+	}
+	
+	public static boolean isValidPolygon(List<Point> polygonPoints) {
+		GeometryFactory gf = new GeometryFactory();
+		Coordinate[] polyCoords = polygonPointListToCoordinates(polygonPoints);
+		Polygon polygon = gf.createPolygon(polyCoords);
+		Geometry geo = org.locationtech.jts.geom.util.GeometryFixer.fix(polygon);
+		
+		if(geo instanceof MultiPolygon) return false;
+		if(geo instanceof Polygon) return true;
+		return false;
 	}
 
 	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, int idx) {
@@ -536,6 +573,12 @@ public class GeometryUtils {
 
 		Polygon polygon = gf.createPolygon(polyCoords);
 		if (!polygon.isValid()) {
+			Geometry geo = org.locationtech.jts.geom.util.GeometryFixer.fix(polygon);
+			if(geo instanceof MultiPolygon) {
+				System.out.println(geo);
+				System.out.println(idx);
+				PolygonCreator.visualizePolygon(polygonPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_multipolygon.png", 32);
+			}
 			polygon = (Polygon) org.locationtech.jts.geom.util.GeometryFixer.fix(polygon);
 		}
 
@@ -579,14 +622,22 @@ public class GeometryUtils {
 			Collection<Polygon> polygons = polygonizer.getPolygons();
 			Collection<LineString> dangles = polygonizer.getDangles(); 
 
-//			int bbb = 1593;
+//			int bbb = 28895;
 //			if(idx == bbb) {
 //				System.out.println("polygon "+bbb);
+//				int ii=0;
+//				List<List<Point>> allPolygons = new ArrayList<List<Point>>();
 //				for (Polygon poly : polygons) {
 //					System.out.println(poly);
+//					List<Point> polyPoints = polygonToPointList(poly);
+//					PolygonCreator.visualizePolygon(polyPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_bigpolygon_"+bbb+"_"+ii+".png", 32);
+//					ii++;
+//					allPolygons.add(polyPoints);
 //				}
-//				System.out.println(dangles);
-//				System.out.println(nodedLines);
+//				System.out.println("dangles: "+dangles);
+//				System.out.println("noded lines: "+nodedLines);
+//				PolygonCreator.visualizePolygons(allPolygons, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_bigpolygon_"+bbb+"_all.png", 32);
+//				PolygonCreator.visualizePolygon(polygonPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_bigpolygon_"+bbb+"_all_pre.png", 32);
 //			}
 
 			//			for (Polygon poly : polygons) {
@@ -599,7 +650,6 @@ public class GeometryUtils {
 					if(!poly2.equals(poly)) {
 						Polygon p1 = gf.createPolygon(poly.getExteriorRing(), null);
 						Polygon p2 = gf.createPolygon(poly2.getExteriorRing(), null);
-						//												System.out.println(p1+" vs "+p2+" "+p2.contains(p1));
 						if(p2.contains(p1)) covered = true;
 					}
 				}
@@ -623,57 +673,79 @@ public class GeometryUtils {
 									}
 								}
 							}
-							//							System.out.println(eqJ+" "+eqK);
 							if(eqK >= 0) {
 								for(int k=0;k<ring.size()-1;k++) {
 									int kk = (eqK + k) % (ring.size()-1);
 									coords.add(eqJ+k, ring.get(kk));
 								}
 								innerRings.remove(i);
-								//								System.out.println(coords);
 							}
 
 						}
 					}
-					//					for(int i=0;i<poly.getNumInteriorRing();i++) {
-					//						List<Coordinate> coords2 = List.of(poly.getInteriorRingN(i).getCoordinates());
-					//						for(int j=0;j<coords.size();j++) {
-					//							if(coords.get(j).equals2D(coords2.get(0))) {
-					//								for(int k=1;k<coords2.size();k++) {
-					//									coords.add(j, coords2.get(k));
-					//								}
-					//								break;
-					//							}
-					//						}
-					//					}
-					//					System.out.println("coords: "+coords);
+
+					List<LineString> filteredDangles = new ArrayList<>();
+					for(LineString baseDangle : dangles) {
+						Geometry dangleGeometry = baseDangle.intersection(poly);
+						if(dangleGeometry.getNumPoints() > 1) {
+							filteredDangles.add((LineString) dangleGeometry);
+						}
+					}
 
 					List<Point> points = new ArrayList<Point>();
-					for(int i=0;i<coords.size()-1;i++) { // do not include the last point because the region polygon do not include the first point twice
-						Coordinate c = coords.get(i);
-						points.add(new PointFloat(c.x, c.y));
 
-						for(LineString dangle : dangles) {
+					// process dangles, make sure they are added in the correct order
+					Map<Integer,List<LineString>> dangleMap = new HashMap<Integer,List<LineString>>();
+					for(int i=0;i<coords.size()-1;i++) {
+						Coordinate c = coords.get(i);
+						for(LineString dangle : filteredDangles) {
 							Coordinate cc = dangle.getCoordinateN(0);
 							if(cc.x == c.x && cc.y == c.y) {
-								for(int j=1;j<dangle.getNumPoints();j++) {
-									Coordinate cc2 = dangle.getCoordinateN(j);
-									points.add(new PointFloat(cc2.x, cc2.y));
-								}
-								for(int j=1;j<dangle.getNumPoints();j++) {
-									Coordinate cc2 = dangle.getCoordinateN(dangle.getNumPoints() - j - 1);
-									points.add(new PointFloat(cc2.x, cc2.y));
-								}
+								if(!dangleMap.keySet().contains(i)) dangleMap.put(i, new ArrayList<LineString>());
+								dangleMap.get(i).add(dangle);
 							}
-
 							cc = dangle.getCoordinateN(dangle.getNumPoints()-1);
 							if(cc.x == c.x && cc.y == c.y) {
+								if(!dangleMap.keySet().contains(i)) dangleMap.put(i, new ArrayList<LineString>());
+								dangleMap.get(i).add(dangle.reverse());
+							}
+						}
+					}
+					
+//					if(idx == bbb) System.out.println(coords);
+
+					for(int i=0;i<coords.size()-1;i++) { // do not include the last point because the region polygons do not include the first point twice
+						Coordinate c = coords.get(i);
+						points.add(new PointFloat(c.x, c.y));
+						if(dangleMap.keySet().contains(i)) {
+							int iprev = i>0 ? i-1: coords.size()-2;
+							Coordinate cprev = coords.get(iprev);
+							double angleprev = Math.atan2(cprev.y - c.y, cprev.x - c.x) + Math.PI;
+							if(angleprev > 2 * Math.PI - EPSILON) angleprev = 0;
+//							if(idx == bbb) System.out.println(angleprev+" "+cprev+" to "+c+" ");
+							
+							List<LineStringAndAngle> list = new ArrayList<LineStringAndAngle>();
+							
+							for(LineString dangle : dangleMap.get(i)) {
+								double angle = Math.atan2(dangle.getCoordinateN(1).y - c.y, dangle.getCoordinateN(1).x - c.x) + Math.PI;
+//								if(idx == bbb) System.out.println(angle+" "+Math.abs(angle - angleprev));
+								list.add(new LineStringAndAngle(dangle, Math.abs(angle - angleprev)));
+							}
+							
+//							if(list.get(0).angle > angleprev && list.get(0).angle < anglenext) {
+//							if(anglenext < angleprev) {
+								list.sort((e1, e2) -> Double.compare(e1.angle, e2.angle));
+//							} else list.sort((e1, e2) -> Double.compare(e1.angle, e2.angle));
+							
+							for(int ii=0;ii<list.size();ii++) {
+								LineString dangle = list.get(ii).c;
+								
 								for(int j=1;j<dangle.getNumPoints();j++) {
-									Coordinate cc2 = dangle.getCoordinateN(dangle.getNumPoints() - j - 1);
+									Coordinate cc2 = dangle.getCoordinateN(j);
 									points.add(new PointFloat(cc2.x, cc2.y));
 								}
 								for(int j=1;j<dangle.getNumPoints();j++) {
-									Coordinate cc2 = dangle.getCoordinateN(j);
+									Coordinate cc2 = dangle.getCoordinateN(dangle.getNumPoints() - j - 1);
 									points.add(new PointFloat(cc2.x, cc2.y));
 								}
 							}
@@ -692,6 +764,12 @@ public class GeometryUtils {
 
 				result.add(polygonPoints);
 			}
+
+//			if(idx == bbb) {
+//				for(int zz = 0; zz < result.size();zz++) {
+//					PolygonCreator.visualizePolygon(result.get(zz), System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_polygon_"+zz+".png", 32);
+//				}
+//			}
 
 			return result;
 		}

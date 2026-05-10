@@ -13,8 +13,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
+
+import vectormaps.PolygonCreator;
 
 class IntBoolAsIntPair {
 	int i;
@@ -238,8 +242,8 @@ public class FileOperator {
 	}
 
 	public static String pointToString(Point p, int width, int height) {
-		int xString = (int) (Math.round(SCALE*p.xFloat())/SCALE * WIDTH / width);
-		int yString = (int) (Math.round(SCALE*p.yFloat())/SCALE * HEIGHT / height);
+		double xString = Math.round(SCALE*(p.xFloat()/width * 360 - 180))/SCALE;
+		double yString = Math.round(SCALE*(p.yFloat()/height * 180 - 90))/SCALE;
 		return xString+","+yString;
 	}
 
@@ -272,6 +276,7 @@ public class FileOperator {
 			int triangle = 0;
 
 			// triangles
+			List<List<Point>> riverTriangles = new ArrayList<List<Point>>();
 
 			for(int d=maxDrawOrder;d>=0;d--) {
 				for(int j=0;j<regions.size();j++) {
@@ -291,7 +296,7 @@ public class FileOperator {
 									PointFloat p2 = vertices.get(i).asFloatPoint();
 									PointFloat p3 = vertices.get(next).asFloatPoint();
 
-									List<PointFloat> l = new ArrayList<PointFloat>();
+									List<Point> l = new ArrayList<Point>();
 									l.add(p1); l.add(p2); l.add(p3);
 
 									if(region.getBit(region.triangleDrawOrder, z1)) {
@@ -309,29 +314,52 @@ public class FileOperator {
 
 										if(triangle > 0) writer.write("\n");
 
-										int oppColor1 = -1, oppColor2 = -1;
-										//										, oppColor3 = -1;
+										int oppColor1 = -1, oppColor2 = -1, oppColor3 = -1;
 
-										if(oppRegions.get(prev) >= 0) {
-											if(oppRivers.size() > 0 && oppRivers.get(prev) >= 0) oppColor1 = oppRivers.get(prev);
-											else oppColor1 = -regions.get(oppRegions.get(prev)).colorData - 2;
+										if(oppRivers.size() > 0 && oppRivers.get(prev) >= 0) oppColor1 = oppRivers.get(prev);
+										else if(oppRegions.get(prev) >= 0) {
+											oppColor1 = -regions.get(oppRegions.get(prev)).colorData - 2;
 										}
-										if(oppRegions.get(i) >= 0) {
-											if(oppRivers.size() > 0 && oppRivers.get(i) >= 0) oppColor2 = oppRivers.get(i);
-											else oppColor2 = -regions.get(oppRegions.get(i)).colorData - 2;
+
+										if(oppRivers.size() > 0 && oppRivers.get(i) >= 0) oppColor2 = oppRivers.get(i);
+										else if(oppRegions.get(i) >= 0) {
+											oppColor2 = -regions.get(oppRegions.get(i)).colorData - 2;
 										}
-										//										if(oppRegions.get(next) >= 0) {
-										//											if(oppRivers.size() > 0 && oppRivers.get(next) >= 0) oppColor3 = oppRivers.get(next);
-										//											else oppColor3 = -regions.get(oppRegions.get(next)).colorData - 2;
-										//										}
+
+										if(oppRivers.size() > 0 && oppRivers.get(next) >= 0) oppColor3 = oppRivers.get(next);
+										else if(oppRegions.get(next) >= 0) {
+											oppColor3 = -regions.get(oppRegions.get(next)).colorData - 2;
+										}
 										//
-										//										if(oppColor1 == 213 || oppColor2 == 213 || oppColor3 == 213) {
-										//											System.out.println(j+": "+p1+" "+p2+" "+p3+" "+oppColor1+" "+oppColor2+" "+oppColor3);
+										//										if(oppColor1 == 213 || oppColor2 == 213) {
+										//											System.out.println(j+": "+p1+" "+p2+" "+p3+" "+oppColor1+" "+oppColor2);
 										//										}
 
 										addEdgeAdjacent(edgeAdjacents, edgeAdjacentColors, edge1.i, triangle, oppColor1);
 										addEdgeAdjacent(edgeAdjacents, edgeAdjacentColors, edge2.i, triangle, oppColor2);
-										addEdgeAdjacent(edgeAdjacents, edgeAdjacentColors, edge3.i, triangle, -1);
+										if(vertices.size() > 3) addEdgeAdjacent(edgeAdjacents, edgeAdjacentColors, edge3.i, triangle, -1);
+										else addEdgeAdjacent(edgeAdjacents, edgeAdjacentColors, edge3.i, triangle, oppColor3);
+
+										//										if(triangle == 0) {
+										//										int b = 5323;
+										//										if(edge1.i == b || edge2.i == b || edge3.i == b) {
+										//											System.out.println("region: "+region.regionIdx+", "+triangle);
+										//											System.out.println(p1+" "+p2+" "+p3);
+										//											System.out.println(p1i+" "+p2i+" "+p3i);
+										//											System.out.println(edge1.i+" "+edge2.i+" "+edge3.i);
+										//										}
+
+										//										if(triangle == 134491 || triangle == 364463) {
+										if(j == 40149) {
+											System.out.println(triangle+": "+l+", region "+j);
+											System.out.println(edge1.i+" "+edge2.i+" "+edge3.i);
+											System.out.println(vertices);
+											System.out.println(oppRegions);
+											System.out.println(oppRivers);
+											System.out.println(oppColor1+", "+oppColor2);
+											riverTriangles.add(l);
+											PolygonCreator.visualizePolygon(l, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_166_triangles_"+triangle+".png", 64);
+										}
 
 										writer.write(edge1.i+","+edge2.i+","+edge3.i+","+edge1.b+","+edge2.b+","+edge3.b);
 										if(z2 == 0) writer.write(","+region.colorData);
@@ -356,8 +384,17 @@ public class FileOperator {
 			}
 			writer.close();
 
+			System.out.println("num triangles: "+triangle);
+			System.out.println("num edges: "+edges.size());
+			System.out.println("num points: "+points.size());
+
+			System.out.println(edgeAdjacents.get(216932));
+			System.out.println(edgeAdjacentColors.get(216932));
+
 			// edges
 
+			int rrr = 166;
+			List<List<Point>> riverPoints = new ArrayList<List<Point>>();
 			writer = new BufferedWriter(new FileWriter(edgeFileName));
 			for(int i=0;i<edges.size();i++) {
 				if(i > 0) writer.write("\n");
@@ -365,28 +402,54 @@ public class FileOperator {
 
 				writer.write(","+edgeAdjacents.get(i).get(0));
 				if(edgeAdjacents.get(i).size() > 1) {
+					List<Integer> indices = new ArrayList<Integer>();
 					writer.write(","+edgeAdjacents.get(i).get(1));
 					for(int j=0;j<edgeAdjacentColors.get(i).size();j++) {
-						if(edgeAdjacentColors.get(i).get(j) >= 0) {
-							if(edgeAdjacentColors.get(i).get(j) == 213) System.out.println("---"+edgeAdjacentColors.get(i));
-							//							writer.write(",&"+edgeAdjacentColors.get(i).get(j));
-							//							break;
+						int z = edgeAdjacentColors.get(i).get(j);
+						if(edgeAdjacentColors.get(i).get(j) >= 0 && !indices.contains(z)) indices.add(z);
+					}
+					if(indices.size() > 0) {
+						if(indices.get(0) == rrr) {
+							String[] s = edges.get(i).split(",");
+							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
+							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
+							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
+							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
+							List<Point> l =new ArrayList<Point>();
+							l.add(p1);
+							l.add(p2);
+							riverPoints.add(l);
+							System.out.println("edge "+i+" --- "+edgeAdjacents.get(i)+" --- "+edgeAdjacentColors.get(i)+", "+indices+", "+l);
 						}
+						writer.write(","+indices.get(0));
 					}
-					if(edgeAdjacentColors.get(i).get(0) >= 0) {
-						writer.write(","+edgeAdjacentColors.get(i).get(0));
-					}
+					if(indices.size() > 1) System.out.println("Warning: edge "+i+" has more than 1 adjacent rivers: "+edgeAdjacentColors.get(i));
 				} else {
+					if(edgeAdjacentColors.get(i).size() > 1) System.out.println("Warning: edge "+i+" has more than 1 adjacent colors: "+edgeAdjacentColors.get(i));
 					if(edgeAdjacentColors.get(i).get(0) >= 0) {
 						writer.write(",-1,"+edgeAdjacentColors.get(i).get(0));
+						if(edgeAdjacentColors.get(i).get(0) == rrr) {
+							String[] s = edges.get(i).split(",");
+							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
+							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
+							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
+							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
+							List<Point> l =new ArrayList<Point>();
+							l.add(p1);
+							l.add(p2);
+							riverPoints.add(l);
+							System.out.println("edge "+i+" -*- "+edgeAdjacents.get(i)+" -*- "+edgeAdjacentColors.get(i)+", , "+l);
+						}
 					} else writer.write(","+edgeAdjacentColors.get(i).get(0));
 				}
 
-				if(edgeAdjacents.get(i).size() > 2) System.out.println("Warning: edge "+i+" has more than 2 adjacents: "+edgeAdjacents.get(i));
+				//				if(edgeAdjacents.get(i).size() > 2) System.out.println("Warning: edge "+i+" has more than 2 adjacents: "+edgeAdjacents.get(i));
 				//				if(edgeAdjacentColors.get(i).size() > 1) System.out.println("Warning: edge "+i+" has more than 1 adjacent colors: "+edgeAdjacentColors.get(i));
 			}
 			writer.close();
 
+			PolygonCreator.visualizePolygons(riverTriangles, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_some_triangles.png", 64);
+			PolygonCreator.visualizePolygons(riverPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_from_edges.png", 64);
 			// points
 
 			writer = new BufferedWriter(new FileWriter(pointFileName));

@@ -148,7 +148,7 @@ public class RiverProcessor {
 		while(removed) {
 			removed = removeOneSegment(l);
 		}
-		
+
 		boolean split = true;
 		while(split) {
 			split = splitOneSegment(l);
@@ -206,7 +206,7 @@ public class RiverProcessor {
 
 		return false;
 	}
-	
+
 	public static boolean splitOneSegment(List<List<Point>> l) {
 		int n = l.size();
 		for(int i=0;i<n;i++) {
@@ -247,15 +247,15 @@ public class RiverProcessor {
 		for(String s : pointMap.keySet()) {
 			List<List<Point>> points = pointMap.get(s);
 			pointMap.put(s, GeometryUtils.simplifyJts(points, d));
-//			System.out.println(pointMap.get(s));
+			//			System.out.println(pointMap.get(s));
 		}
-		
+
 		return pointMap;
 	}
 
 	public void simplifyAndWriteRiverData(double d) {
 		Map<String,List<List<Point>>> pointMap = simplifyRiverData(d);
-		
+
 		try {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(SIMPLIFIED_RIVER_DATA_FILENAME));
 
@@ -319,7 +319,7 @@ public class RiverProcessor {
 					lastX = x;
 					lastY = y;
 				}
-				
+
 				c++;
 			}
 
@@ -388,50 +388,50 @@ public class RiverProcessor {
 			}
 		}
 	}
-	
+
 	public void test1() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(10,0));
 		polygon.add(new PointInt(10,10));
 		polygon.add(new PointInt(0,10));
-		
+
 		List<Point> line = new ArrayList<Point>();
 		line.add(new PointInt(-5,10));
 		line.add(new PointInt(5,0));
 		line.add(new PointInt(10,5));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line);
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test2() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(2,0));
 		polygon.add(new PointInt(2,2));
 		polygon.add(new PointInt(0,2));
-		
+
 		List<Point> line = new ArrayList<Point>();
 		line.add(new PointFloat(-1,2));
 		line.add(new PointFloat(0.5,0.5));
 		line.add(new PointFloat(1,1));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line);
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test3() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(2,0));
 		polygon.add(new PointInt(2,2));
 		polygon.add(new PointInt(0,2));
-		
+
 		List<Point> line = new ArrayList<Point>();
 		line.add(new PointFloat(0.5,0.5));
 		line.add(new PointFloat(-1,2));
@@ -439,16 +439,16 @@ public class RiverProcessor {
 		line.add(new PointFloat(3,3));
 		line.add(new PointFloat(3,2));
 		line.add(new PointFloat(1.5,0.5));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line);
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test4() {
 		List<List<Point>> lines = new ArrayList<List<Point>>();
-		
+
 		List<Point> line1 = new ArrayList<Point>();
 		line1.add(new PointFloat(0.5,0.5));
 		line1.add(new PointFloat(-1,2));
@@ -457,7 +457,7 @@ public class RiverProcessor {
 		line1.add(new PointFloat(3,2));
 		line1.add(new PointFloat(1.5,0.5));
 		lines.add(line1);
-		
+
 		List<Point> line2 = new ArrayList<Point>();
 		line2.add(new PointFloat(-1,2));
 		line2.add(new PointFloat(-2,3));
@@ -465,7 +465,7 @@ public class RiverProcessor {
 		line2.add(new PointFloat(-3,5));
 		line2.add(new PointFloat(-3,5));
 		lines.add(line2);
-		
+
 		List<Point> line3 = new ArrayList<Point>();
 		line3.add(new PointFloat(-1,2));
 		line3.add(new PointFloat(-2,3));
@@ -473,56 +473,56 @@ public class RiverProcessor {
 		line3.add(new PointFloat(-3,5));
 		line3.add(new PointFloat(-3,5));
 		lines.add(line3);
-		
+
 		List<List<Point>> aaa = GeometryUtils.simplifyJts(lines, 0.1);
 		System.out.println(aaa);
 	}
-	
+
 	public void test5() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(10,0));
 		polygon.add(new PointInt(10,10));
 		polygon.add(new PointInt(0,10));
-		
+
 		List<Point> line1 = new ArrayList<Point>();
 		line1.add(new PointInt(-5,9));
 		line1.add(new PointInt(15,1));
-		
+
 		List<Point> line2 = new ArrayList<Point>();
 		line2.add(new PointInt(-5,10));
 		line2.add(new PointInt(15,2));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line1);
 		lines.add(line2);
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test6() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(10,0));
 		polygon.add(new PointInt(10,10));
 		polygon.add(new PointInt(0,10));
-		
+
 		List<Point> line1 = new ArrayList<Point>();
 		line1.add(new PointInt(-5,9));
 		line1.add(new PointInt(15,1));
-		
+
 		List<Point> line2 = new ArrayList<Point>();
 		line2.add(new PointInt(-5,10));
 		line2.add(new PointInt(15,2));
-		
+
 		List<Point> line3 = new ArrayList<Point>();
 		line3.add(new PointInt(-1,1));
 		line3.add(new PointInt(2,1));
-		
+
 		List<Point> line4 = new ArrayList<Point>();
 		line4.add(new PointInt(9,9));
 		line4.add(new PointInt(12,9));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line1);
 		lines.add(line2);
@@ -531,7 +531,7 @@ public class RiverProcessor {
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test7() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
@@ -545,18 +545,18 @@ public class RiverProcessor {
 		polygon.add(new PointInt(9,1));
 		polygon.add(new PointInt(9,0));
 		polygon.add(new PointInt(0,0));
-		
+
 		List<Point> line1 = new ArrayList<Point>();
 		line1.add(new PointInt(-5,8));
 		line1.add(new PointInt(15,8));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line1);
-		
+
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 	}
-	
+
 	public void test8() {
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
@@ -574,45 +574,262 @@ public class RiverProcessor {
 		polygon.add(new PointInt(9,1));
 		polygon.add(new PointInt(9,0));
 		polygon.add(new PointInt(0,0));
-		
+
 		List<Point> line1 = new ArrayList<Point>();
 		line1.add(new PointInt(-5,8));
 		line1.add(new PointInt(15,8));
-		
+
 		List<List<Point>> lines = new ArrayList<List<Point>>();
 		lines.add(line1);
-		
+
 		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
+		System.out.println("expected output:");
+		System.out.println("[[(0.0, 0.0), (0.0, 8.0), (10.0, 8.0), (10.0, 1.0), (9.0, 1.0), (9.0, 2.0), (8.0, 2.0), (8.0, 3.0), (7.0, 3.0), (7.0, 2.0), (8.0, 2.0), (8.0, 1.0), (9.0, 1.0), (9.0, 0.0)], [(0.0, 8.0), (0.0, 10.0), (10.0, 10.0), (10.0, 8.0)]]");
+	}
+	
+	public boolean check(List<Point> polygon1, double[][] polygon2) {
+		if(polygon1.size() != polygon2.length || polygon2[0].length != 2) return false;
+		
+		for(int i=0;i<polygon1.size();i++) {
+			if(!polygon1.get(i).equals(new PointFloat(polygon2[i][0], polygon2[i][1]))) return false;
+		}
+		
+		return true;
+	}
+
+	public void test9() {
+		List<Boolean> results = new ArrayList<Boolean>();
+		
+		List<Point> polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(10,10));
+		polygon.add(new PointInt(10,0));
+		polygon.add(new PointInt(0,0));
+
+		List<Point> line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-2,4));
+		line1.add(new PointInt(2,6));
+
+		List<Point> line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-2,6));
+		line2.add(new PointInt(2,4));
+
+		List<List<Point>> lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		List<List<Point>> newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{0, 0}, {0, 5}, {2, 4}, {0, 5}, {2, 6}, {0, 5}, {0, 10}, {10, 10}, {10, 0}}));
+
+		System.out.println("1---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(10,0));
+		polygon.add(new PointInt(10,10));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-2,4));
+		line1.add(new PointInt(2,6));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-2,6));
+		line2.add(new PointInt(2,4));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{0, 0}, {0, 5}, {2, 4}, {0, 5}, {2, 6}, {0, 5}, {0, 10}, {10, 10}, {10, 0}}));
+
+		System.out.println("2---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(10,0));
+		polygon.add(new PointInt(10,10));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(8,4));
+		line1.add(new PointInt(12,6));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(8,6));
+		line2.add(new PointInt(12,4));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{10, 5}, {8, 6}, {10, 5}, {8, 4}, {10, 5}, {10, 0}, {0, 0}, {0, 10}, {10, 10}}));
+
+		System.out.println("3---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(10,0));
+		polygon.add(new PointInt(10,10));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(8,4));
+		line1.add(new PointInt(12,6));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(8,6));
+		line2.add(new PointInt(12,4));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{10, 5}, {8, 6}, {10, 5}, {8, 4}, {10, 5}, {10, 0}, {0, 0}, {0, 10}, {10, 10}}));
+
+		System.out.println("4---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(-10,10));
+		polygon.add(new PointInt(-10,0));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-8,6));
+		line1.add(new PointInt(-12,4));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-8,4));
+		line2.add(new PointInt(-12,6));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{0, 0}, {-10, 0}, {-10, 5}, {-8, 4}, {-10, 5}, {-8, 6}, {-10, 5}, {-10, 10}, {0, 10}}));
+
+		System.out.println("5---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(-10,0));
+		polygon.add(new PointInt(-10,10));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-8,6));
+		line1.add(new PointInt(-12,4));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-8,4));
+		line2.add(new PointInt(-12,6));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{-10, 5}, {-8, 4}, {-10, 5}, {-8, 6}, {-10, 5}, {-10, 10}, {0, 10}, {0, 0}, {-10, 0}}));
+
+		System.out.println("6---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(-10,10));
+		polygon.add(new PointInt(-10,0));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-6,12));
+		line1.add(new PointInt(-4,8));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-6,8));
+		line2.add(new PointInt(-4,12));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{-5, 10}, {-6, 8}, {-5, 10}, {-4, 8}, {-5, 10}, {0, 10}, {0, 0}, {-10, 0}, {-10, 10}}));
+
+		System.out.println("7---");
+
+		polygon = new ArrayList<Point>();
+		polygon.add(new PointInt(0,0));
+		polygon.add(new PointInt(-10,0));
+		polygon.add(new PointInt(-10,10));
+		polygon.add(new PointInt(0,10));
+		polygon.add(new PointInt(0,0));
+
+		line1 = new ArrayList<Point>();
+		line1.add(new PointInt(-6,12));
+		line1.add(new PointInt(-4,8));
+
+		line2 = new ArrayList<Point>();
+		line2.add(new PointInt(-6,8));
+		line2.add(new PointInt(-4,12));
+
+		lines = new ArrayList<List<Point>>();
+		lines.add(line1);
+		lines.add(line2);
+
+		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
+		System.out.println(newPolygons);
+		results.add(check(newPolygons.get(0), new double[][] {{0, 0}, {-10, 0}, {-10, 10}, {-5, 10}, {-6, 8}, {-5, 10}, {-4, 8}, {-5, 10}, {0, 10}}));
+		
+		System.out.println(results);
 	}
 
 	public static void main(String[] args) {
 		//		new RiverProcessor().reformatRiverData();
-//		new RiverProcessor().simplifyAndWriteRiverData(100000);
+		//		new RiverProcessor().simplifyAndWriteRiverData(100000);
 		//		new RiverProcessor().drawRivers(REFORMATTED_RIVER_DATA_FILENAME, BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME);
-//		new RiverProcessor().drawRivers(SIMPLIFIED_RIVER_DATA_FILENAME, BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME, false);
-//		new RiverProcessor().drawRivers(SIMPLIFIED_RIVER_DATA_FILENAME, BASE_MAP_WITH_SIMPLIFIED_SEGMENTED_RIVERS_OUTPUT_FILENAME, true);
+		//		new RiverProcessor().drawRivers(SIMPLIFIED_RIVER_DATA_FILENAME, BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME, false);
+		//		new RiverProcessor().drawRivers(SIMPLIFIED_RIVER_DATA_FILENAME, BASE_MAP_WITH_SIMPLIFIED_SEGMENTED_RIVERS_OUTPUT_FILENAME, true);
 
-//		new RiverProcessor().test1();
-//		new RiverProcessor().test2();
-//		new RiverProcessor().test3();
-//		new RiverProcessor().test4();
-//		new RiverProcessor().test5();
-//		new RiverProcessor().test6();
-//		new RiverProcessor().test7();
-		new RiverProcessor().test8();
-		
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(2,0), new PointInt(0,0), new PointInt(1,0)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(0,0), new PointInt(2,0)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(1,0), new PointInt(2,0)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(2,0), new PointInt(3,0)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(-1,0), new PointInt(2,0)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(-1,0), new PointInt(2,0), new PointInt(0,0), new PointInt(1,0)));
-//		
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(2,1), new PointInt(3,1)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(0,0), new PointInt(1,1)));
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(-1,0), new PointInt(0,1)));
-		
-//		System.out.println(GeometryUtils.sharesSegmentWith(new PointFloat(130.98181315800002, 172.10139991300002), new PointFloat(136.97886383200003, 171.88664246500002), new PointFloat(136.97886383241146, 171.886642465297), new PointFloat(130.98181315791462, 172.1013999130309)));
+		//		new RiverProcessor().test1();
+		//		new RiverProcessor().test2();
+		//		new RiverProcessor().test3();
+		//		new RiverProcessor().test4();
+		//		new RiverProcessor().test5();
+		//		new RiverProcessor().test6();
+		//		new RiverProcessor().test7();
+		//		new RiverProcessor().test8();
+		new RiverProcessor().test9();
+
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(2,0), new PointInt(0,0), new PointInt(1,0)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(0,0), new PointInt(2,0)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(1,0), new PointInt(2,0)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(2,0), new PointInt(3,0)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(-1,0), new PointInt(2,0)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(-1,0), new PointInt(2,0), new PointInt(0,0), new PointInt(1,0)));
+		//		
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(2,1), new PointInt(3,1)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(0,0), new PointInt(1,1)));
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(-1,0), new PointInt(0,1)));
+
+		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointFloat(130.98181315800002, 172.10139991300002), new PointFloat(136.97886383200003, 171.88664246500002), new PointFloat(136.97886383241146, 171.886642465297), new PointFloat(130.98181315791462, 172.1013999130309)));
 	}
 }

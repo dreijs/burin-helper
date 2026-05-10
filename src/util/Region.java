@@ -79,7 +79,7 @@ public class Region {
 	}
 
 	public void extendBasedOnPolygon(List<Point> newPolygon, List<List<Point>> intersectingRiverData, List<Integer> riverIndices) {
-//		if(regionIdx == 161) {
+//		if(regionIdx == 2230) {
 //			System.out.println("---"+regionIdx);
 //			System.out.println(polygon);
 //			System.out.println(opposingRegions);
@@ -107,7 +107,7 @@ public class Region {
 		this.opposingRegions = newOppRegions;
 		this.opposingRivers = newOppRivers;
 		
-//		if(regionIdx == 161) {
+//		if(regionIdx == 2230) {
 //			System.out.println("---"+regionIdx);
 //			System.out.println(polygon);
 //			System.out.println(opposingRegions);

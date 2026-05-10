@@ -6,10 +6,8 @@ import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -133,16 +131,25 @@ public class PolygonCreator {
 		System.out.println("done");
 	}
 
-	void visualizePolygon(List<Point> p, String fileName, int scale) {
+	public static void visualizePolygon(List<Point> p, String fileName, int scale) {
 		List<List<Point>> ps = new ArrayList<List<Point>>();
 		ps.add(p);
 		visualizePolygons(ps, fileName, scale);
 	}
 
-	void visualizePolygons(List<List<Point>> ps, String fileName, int scale) {
+	public static void visualizePolygons(List<List<Point>> ps, String fileName, int baseScale) {
+		int scale = baseScale;
+
 		Rectangle2D.Double bb = GeometryUtils.getFloatBoundingBoxFromLists(ps);
+
+		// prevent integer overflows (width and height should roughly be below Math.sqrt(Integer.MAX_VALUE), but set to 30000 just in case)
+		scale /= Math.ceil(((long) scale) * bb.width / 30000);
+		scale /= Math.ceil(((long) scale) * bb.height / 30000);
+
 		int w = (int) (Math.ceil(scale * bb.width)) + 3; // + 2 to create white margin at edge
 		int h = (int) (Math.ceil(scale * bb.height)) + 3;
+
+		//		System.out.println(w+" "+h+" "+ps);
 
 		try {
 			BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -470,10 +477,25 @@ public class PolygonCreator {
 		for(String s : pointMap.keySet()) {
 			boundingBoxes.put(s, GeometryUtils.getIntegerBoundingBoxFromLists(pointMap.get(s)));
 			riverIdxMap.put(s,riverIdxMap.keySet().size());
+			if(riverIdxMap.get(s) == 166) {
+				System.out.println("river 166: "+s+" "+pointMap.get(s).size()+" "+pointMap.get(s).get(0).size()+" "+pointMap.get(s));
+				List<List<Point>> riverPoints = new ArrayList<List<Point>>();
+				for(int i=0;i<pointMap.get(s).get(0).size()-1;i++) {
+					Point p1 = pointMap.get(s).get(0).get(i);
+					Point p2 = pointMap.get(s).get(0).get(i+1);
+					List<Point> l = new ArrayList<Point>();
+					l.add(p1);
+					l.add(p2);
+					riverPoints.add(l);
+				}
+				visualizePolygons(riverPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_2338.png", 64);
+			}
 		}
 
-		for(int i=regions.size()-1;i>=0;i--) {
-			int c = 0;
+		System.out.println("adding rivers");
+		int n = regions.size();
+		for(int i=n-1;i>=0;i--) {
+			if((n - 1 - i) % 100 == 0) System.out.println((n - 1 - i)+"/"+n);
 			Region region = regions.get(i);
 			region.resetRiverData();
 			Rectangle bb = GeometryUtils.getIntegerBoundingBoxFromList(region.polygon);
@@ -491,20 +513,38 @@ public class PolygonCreator {
 				}
 			}
 
+			//			System.out.print("z");
+
 			List<List<Point>> newPolygons = GeometryUtils.splitPolygon(region.polygon, intersectingRiverData, i);
 
 			if(newPolygons.size() > 1) {
-				visualizePolygons(newPolygons, POLYGONS_NEW_CUT_FOLDER_NAME+"polygon_"+i+"_"+c+".png", 32);
+				//				System.out.println("a");
+				visualizePolygons(newPolygons, POLYGONS_NEW_CUT_FOLDER_NAME+"polygon_"+i+".png", 32);
 				List<Region> newRegions = new ArrayList<Region>();
 				for(int j=0;j<newPolygons.size();j++) {
 					int cc = j > 0 ? regions.size() : i;
-					visualizePolygon(newPolygons.get(j), POLYGONS_NEW_SPLIT_FOLDER_NAME+"polygon_"+cc+"_"+c+".png", 32);
-					
+					visualizePolygon(newPolygons.get(j), POLYGONS_NEW_SPLIT_FOLDER_NAME+"polygon_"+cc+".png", 32);
+
+					//					if(cc == 12279) {
+					//						System.out.println("-*-");
+					//						System.out.println(region);
+					//						for(int jj=0;jj<newPolygons.size();jj++) {
+					//							System.out.println(newPolygons.get(jj));
+					//						}
+					//						System.out.println("-*-");
+					//					}
+
 					Region newRegion = region.splitFromPolygon(newPolygons.get(j), intersectingRiverData, riverIndices, cc);
 					if(j == 0) {regions.set(i, newRegion);}
 					else {regions.add(newRegion);}
 					newRegions.add(newRegion);
-					
+
+					if(i == 12279) {
+						System.out.println("-*-");
+						System.out.println(newRegion);
+						System.out.println("-*-");
+					}
+
 					List<Integer> newOpps = new ArrayList<Integer>();
 					for(int k=0;k<newRegion.polygon.size();k++) newOpps.add(cc);
 					for(int k=0;k<j;k++) {
@@ -513,7 +553,8 @@ public class PolygonCreator {
 					}
 				}
 			} else if(newPolygons.get(0).size() > region.polygon.size()) {
-				visualizePolygon(newPolygons.get(0), POLYGONS_NEW_UNCUT_FOLDER_NAME+"polygon_"+i+"_"+c+".png", 32);
+				//				System.out.println("b");
+				visualizePolygon(newPolygons.get(0), POLYGONS_NEW_UNCUT_FOLDER_NAME+"polygon_"+i+".png", 32);
 				region.extendBasedOnPolygon(newPolygons.get(0), intersectingRiverData, riverIndices);
 			}
 		}
@@ -593,12 +634,14 @@ public class PolygonCreator {
 		visualizePolygon(polygon, POLYGONS_ALL_FOLDER_NAME+"polygon_"+regId+".png", 4);
 		if(faulty) visualizePolygon(polygon, POLYGONS_ERROR_FOLDER_NAME+"polygon_"+regId+".png", 32);
 
+		boolean trace = false;
+
 		while (vertices.size() > 2) {
 
 			// determine if order is clockwise or counterclockwise
 			boolean clockwise = GeometryUtils.calculatePolygonSignedArea(vertices) < 0;
 
-			for (int i=vertices.size()-1;i>=0 && vertices.size() > 2;i--) {
+			for (int i=vertices.size()-1;i>=0 && vertices.size() >= 0;i--) {
 
 				int prev = (i == 0) ? vertices.size() - 1 : i - 1;
 				int next = (i == vertices.size() - 1) ? 0 : i + 1;
@@ -610,23 +653,39 @@ public class PolygonCreator {
 				List<Point> l = new ArrayList<Point>();
 				l.add(vPrev); l.add(vCurr); l.add(vNext);
 
+				if(trace) {
+					System.out.println(l+": "+GeometryUtils.isEar(vPrev, vCurr, vNext, vertices, clockwise)+", "+GeometryUtils.calculatePolygonArea(l));
+				}
+
 				// Check for convexity and if the triangle formed is an "ear"
 				// (i.e., no other polygon vertices are inside the triangle)
 
-				if (GeometryUtils.isEar(vPrev, vCurr, vNext, vertices, clockwise)) {
+				if (GeometryUtils.isEar(vPrev, vCurr, vNext, vertices, clockwise) && (GeometryUtils.calculatePolygonArea(l) > GeometryUtils.EPSILON || GeometryUtils.calculatePolygonArea(vertices) <= GeometryUtils.EPSILON )) {
+					//				if (GeometryUtils.isEar(vPrev, vCurr, vNext, vertices, clockwise)) {
 					setBit(order, idx, true);
 					vertices.remove(i);
+
+					//					if(regId == 13123) {
+					//						System.out.println("rem "+vCurr+" "+l+" "+GeometryUtils.calculatePolygonArea(l));
+					//						visualizePolygon(vertices, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_polygon_"+(polygon.size() - vertices.size() - 1)+".png", 256);
+					//						System.out.println(vertices);
+					//					}
+
 				} else {
 					setBit(order, idx, false);
 				}
 				idx++;
+				if(vertices.size() < 3) break;
 				if(idx >= order.length*8) {
 					System.out.println(regId+" "+vertices+" "+GeometryUtils.calculatePolygonArea(l));
 					order = extend(order);
 					printShapeInt(polygon);
 					printShapeInt(vertices);
+					trace = true;
 				}
 			}
+
+			if(trace) trace = false;
 		}
 
 		byte[] result = new byte[(int) (idx/8) + 1];
@@ -964,20 +1023,61 @@ public class PolygonCreator {
 	}
 
 	void addRandomNoise(List<Region> regions, long baseSeed, double v, int width, int height) {
+		System.out.println("add random noise");
+
+		Point[][] shiftedPoints = new Point[width+1][height+1];
+		Random r = new Random(baseSeed);
+
+		// initialize
+		for(int i=regions.size()-1;i>=0;i--) {
+			Region region = regions.get(i);
+			for(Point p : region.polygon) {
+				int x = p.xInt();
+				int y = p.yInt();
+				if(x > 0 && x < width && y > 0 && y < height) {
+					shiftedPoints[x][y] = new PointFloat(p.xFloat() + v * r.nextGaussian(), p.yFloat() + v * r.nextGaussian());
+				} else {
+					shiftedPoints[x][y] = new PointFloat(p.xFloat(), p.yFloat());
+				}
+			}
+		}
+
+		// ensure that no polygons have intersecting lines
+		int z = 0;
+		boolean finished =  false;
+		while(!finished) {
+			z++;
+			System.out.println("random noise step "+z);
+			finished =  true;
+			for(int i=regions.size()-1;i>=0;i--) {
+				Region region = regions.get(i);
+				List<Point> newPolygon = new ArrayList<Point>();
+				for(Point p : region.polygon) {
+					int x = p.xInt();
+					int y = p.yInt();
+					newPolygon.add(shiftedPoints[x][y]);
+				}
+
+				if(!GeometryUtils.isValidPolygon(newPolygon)) {
+					for(Point p : region.polygon) {
+						int x = p.xInt();
+						int y = p.yInt();
+						shiftedPoints[x][y] = new PointFloat(p.xFloat() + v * r.nextGaussian(), p.yFloat() + v * r.nextGaussian());
+					}
+					finished =  false;
+				}
+			}
+		}
+
+		// finalize
 		for(int i=regions.size()-1;i>=0;i--) {
 			Region region = regions.get(i);
 			List<Point> newPolygon = new ArrayList<Point>();
-
 			for(Point p : region.polygon) {
-				if(p.xInt() > 0 && p.xInt() < width && p.yInt() > 0 && p.yInt() < height) {
-					Random r = new Random(baseSeed + p.xInt() + p.yInt());
-					newPolygon.add(new PointFloat(p.xFloat() + v * r.nextGaussian(), p.yFloat() + v * r.nextGaussian()));
-				} else {
-					newPolygon.add(new PointFloat(p.xFloat(), p.yFloat()));
-
-				}
+				int x = p.xInt();
+				int y = p.yInt();
+				newPolygon.add(shiftedPoints[x][y]);
 			}
-
 			region.polygon = newPolygon;
 		}
 	}
@@ -1056,7 +1156,7 @@ public class PolygonCreator {
 
 		FileOperator.printRegionListToFile(regions, POLYGONS_ORDERED_FILENAME);
 
-		addRandomNoise(regions, 123456L, 0.1 * 8 / scale, mapData.length, mapData[0].length);
+		addRandomNoise(regions, 123456L, 0.025 * scale, mapData.length, mapData[0].length);
 		System.out.println("done: added random noise");
 
 		simplifyDouglasPeucker(regions, 20, 10); // lower means less smoothing
@@ -1119,10 +1219,10 @@ public class PolygonCreator {
 	}
 
 	public static void main(String[] args) {		
-		new PolygonCreator().runSample(8);
+		//		new PolygonCreator().runSample(8);
 		//				new PolygonCreator().runSample(4);
-		//		new PolygonCreator().runSample(2);
-		//				new PolygonCreator().runSample(1);
+		//								new PolygonCreator().runSample(2);
+		new PolygonCreator().runSample(1);
 		//		new PolygonCreator().runAll();
 	}
 }
