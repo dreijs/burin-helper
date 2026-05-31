@@ -1,7 +1,7 @@
 /output/
 /input/ui/
-/input/ff6overworld/
-/input/tamriel/
+/input/map/ff6_overworld/
+/input/map/tes_nirn/
 /bin/
-/input/earth/eo_base_2020_clean_geo.png
-/input/earth/eo_base_2020_clean_geo_modified.png
+/input/map/earth/eo_base_2020_clean_geo.png
+/input/map/earth/eo_base_2020_clean_geo_modified.png

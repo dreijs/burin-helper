@@ -22,6 +22,7 @@ import util.GeometryUtils;
 import util.Point;
 import util.PointFloat;
 import util.PointInt;
+import vectormaps.ElevationMapCreator.MapName;
 
 class RiverData {
 	String name;
@@ -59,13 +60,43 @@ class RiverData {
 }
 
 public class RiverProcessor {
-	public static final String RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\input\\river_data.csv";
-	public static final String REFORMATTED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\map\\reformatted_river_data.csv";
-	public static final String SIMPLIFIED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\map\\simplified_river_data.csv";
-	public static final String BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers.png";
-	public static final String BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers_simplified.png";
-	public static final String BASE_MAP_WITH_SIMPLIFIED_SEGMENTED_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers_simplified_segmented.png";
+//	public static final String RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\input\\river_data.csv";
+//	public static final String REFORMATTED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\map\\reformatted_river_data.csv";
+//	public static final String SIMPLIFIED_RIVER_DATA_FILENAME = System.getProperty("user.dir")+"\\output\\map\\simplified_river_data.csv";
+//	public static final String BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers.png";
+//	public static final String BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers_simplified.png";
+//	public static final String BASE_MAP_WITH_SIMPLIFIED_SEGMENTED_RIVERS_OUTPUT_FILENAME = System.getProperty("user.dir")+"\\output\\map\\rivers_simplified_segmented.png";
+	
+//	public static String REFORMATTED_RIVER_DATA_FILENAME = "reformatted_river_data.csv";
+//	public static String SIMPLIFIED_RIVER_DATA_FILENAME = "simplified_river_data.csv";
+//	public static String BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME = "rivers.csv";
+//	public static String BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME = "rivers_simplified.csv";
+//	public static String BASE_MAP_WITH_SIMPLIFIED_SEGMENTED_RIVERS_OUTPUT_FILENAME = "rivers_simplified_segmented.csv";
 
+	public static String getRiverInputFilename(MapName name) {
+		if(name == MapName.EARTH_1_CE) return System.getProperty("user.dir")+"\\input\\map\\earth\\river_data.csv";
+		if(name == MapName.EARTH_16K_BCE) return System.getProperty("user.dir")+"\\input\\map\\earth\\river_data.csv";
+		if(name == MapName.TES_NIRN) return System.getProperty("user.dir")+"\\input\\map\\tes_nirn\\river_data.csv";
+		if(name == MapName.FF6_OVERWORLD) return System.getProperty("user.dir")+"\\input\\map\\ff6_overworld\\river_data.csv";
+		return "";
+	}
+	
+	public static String getReformattedRiverFilename(MapName name) {
+		if(name == MapName.EARTH_1_CE) return System.getProperty("user.dir")+"\\output\\map\\earth_1_ce\\reformatted_river_data.csv";
+		if(name == MapName.EARTH_16K_BCE) return System.getProperty("user.dir")+"\\output\\map\\earth_16k_bce\\reformatted_river_data.csv";
+		if(name == MapName.TES_NIRN) return System.getProperty("user.dir")+"\\output\\map\\tes_nirn\\reformatted_river_data.csv";
+		if(name == MapName.FF6_OVERWORLD) return System.getProperty("user.dir")+"\\output\\map\\ff6_overworld\\reformatted_river_data.csv";
+		return "";
+	}
+	
+	public static String getSimplifiedRiverFilename(MapName name) {
+		if(name == MapName.EARTH_1_CE) return System.getProperty("user.dir")+"\\output\\map\\earth_1_ce\\simplified_river_data.csv";
+		if(name == MapName.EARTH_16K_BCE) return System.getProperty("user.dir")+"\\output\\map\\earth_16k_bce\\simplified_river_data.csv";
+		if(name == MapName.TES_NIRN) return System.getProperty("user.dir")+"\\output\\map\\tes_nirn\\simplified_river_data.csv";
+		if(name == MapName.FF6_OVERWORLD) return System.getProperty("user.dir")+"\\output\\map\\ff6_overworld\\simplified_river_data.csv";
+		return "";
+	}
+	
 	public String filterRiverName(String s) {
 		String s1 = s.replace("\"", "");
 		String[] s2 = s1.split(" \\(");
@@ -73,10 +104,10 @@ public class RiverProcessor {
 		return s1;
 	}
 
-	public void reformatRiverData() {
+	public void reformatRiverData(MapName name) {
 		try {
-			BufferedReader reader = new BufferedReader(new FileReader(RIVER_DATA_FILENAME));
-			BufferedWriter writer = new BufferedWriter(new FileWriter(REFORMATTED_RIVER_DATA_FILENAME));
+			BufferedReader reader = new BufferedReader(new FileReader(getRiverInputFilename(name)));
+			BufferedWriter writer = new BufferedWriter(new FileWriter(getReformattedRiverFilename(name)));
 
 			String line = reader.readLine(); // skip first line
 			String aggLine = "";
@@ -234,30 +265,50 @@ public class RiverProcessor {
 		return false;
 	}
 
-	public static Map<String,List<List<Point>>> simplifyRiverData(double d) {
+	public static Map<String,List<List<Point>>> simplifyRiverData(double d, MapName name) {
 		// first merge the segments
-		Map<String,List<List<Point>>> pointMap = readRiverDataFromFile(REFORMATTED_RIVER_DATA_FILENAME);
+		Map<String,List<List<Point>>> pointMap = readRiverDataFromFile(getReformattedRiverFilename(name));
 		for(String s : pointMap.keySet()) {
 			List<List<Point>> pointLists = pointMap.get(s);
 			pointMap.put(s, segmentate(pointLists));
 		}
 
 		// simplify the resulting rivers
-
 		for(String s : pointMap.keySet()) {
 			List<List<Point>> points = pointMap.get(s);
-			pointMap.put(s, GeometryUtils.simplifyJts(points, d));
+			List<List<Point>> simplifiedPoints = GeometryUtils.simplifyJts(points, d);
+			boolean valid = true;
+			// check that simplication did not cause any intersections:
+			for(String ss : pointMap.keySet()) {
+				if(!s.equals(ss)) {
+					List<List<Point>> pointLists = pointMap.get(ss);
+
+					for(List<Point> line1 : pointLists) {
+						for(List<Point> line2 : simplifiedPoints) {
+							if(GeometryUtils.doBoundingBoxesIntersect(line1, line2)) {
+								if(!GeometryUtils.areNonIntersectingLines(line1, line2)) valid = false;
+							}
+						}
+					}
+				}
+			}
+
+			if(valid) {
+				pointMap.put(s, GeometryUtils.simplifyJts(points, d));
+			} else System.out.println("***");
+//				System.out.println("+");
+//			} else System.out.println("-");
 			//			System.out.println(pointMap.get(s));
 		}
 
 		return pointMap;
 	}
 
-	public void simplifyAndWriteRiverData(double d) {
-		Map<String,List<List<Point>>> pointMap = simplifyRiverData(d);
+	public void simplifyAndWriteRiverData(double d, MapName name) {
+		Map<String,List<List<Point>>> pointMap = simplifyRiverData(d, name);
 
 		try {
-			BufferedWriter writer = new BufferedWriter(new FileWriter(SIMPLIFIED_RIVER_DATA_FILENAME));
+			BufferedWriter writer = new BufferedWriter(new FileWriter(getSimplifiedRiverFilename(name)));
 
 			int proc = 0;
 			for(String s : pointMap.keySet()) {
@@ -279,7 +330,7 @@ public class RiverProcessor {
 	}
 
 	public void drawRivers(String riverDataFileName, String outputFileName, boolean colorSegments) {
-		int[][] data = FileOperator.readImage(ElevationMapCreator.BASE_MAP_FILENAME);
+		int[][] data = FileOperator.readImage("");
 		int w = data.length;
 		int h = data[0].length;
 
@@ -587,20 +638,20 @@ public class RiverProcessor {
 		System.out.println("expected output:");
 		System.out.println("[[(0.0, 0.0), (0.0, 8.0), (10.0, 8.0), (10.0, 1.0), (9.0, 1.0), (9.0, 2.0), (8.0, 2.0), (8.0, 3.0), (7.0, 3.0), (7.0, 2.0), (8.0, 2.0), (8.0, 1.0), (9.0, 1.0), (9.0, 0.0)], [(0.0, 8.0), (0.0, 10.0), (10.0, 10.0), (10.0, 8.0)]]");
 	}
-	
+
 	public boolean check(List<Point> polygon1, double[][] polygon2) {
 		if(polygon1.size() != polygon2.length || polygon2[0].length != 2) return false;
-		
+
 		for(int i=0;i<polygon1.size();i++) {
 			if(!polygon1.get(i).equals(new PointFloat(polygon2[i][0], polygon2[i][1]))) return false;
 		}
-		
+
 		return true;
 	}
 
 	public void test9() {
 		List<Boolean> results = new ArrayList<Boolean>();
-		
+
 		List<Point> polygon = new ArrayList<Point>();
 		polygon.add(new PointInt(0,0));
 		polygon.add(new PointInt(0,10));
@@ -798,12 +849,20 @@ public class RiverProcessor {
 		newPolygons = GeometryUtils.splitPolygon(polygon, lines);
 		System.out.println(newPolygons);
 		results.add(check(newPolygons.get(0), new double[][] {{0, 0}, {-10, 0}, {-10, 10}, {-5, 10}, {-6, 8}, {-5, 10}, {-4, 8}, {-5, 10}, {0, 10}}));
-		
+
 		System.out.println(results);
+	}
+	
+	public void reformatAll() {
+		reformatRiverData(MapName.EARTH_1_CE);
+		reformatRiverData(MapName.EARTH_16K_BCE);
+		reformatRiverData(MapName.TES_NIRN);
+		reformatRiverData(MapName.FF6_OVERWORLD);
 	}
 
 	public static void main(String[] args) {
-		//		new RiverProcessor().reformatRiverData();
+		new RiverProcessor().reformatAll();
+//				new RiverProcessor().reformatRiverData();
 		//		new RiverProcessor().simplifyAndWriteRiverData(100000);
 		//		new RiverProcessor().drawRivers(REFORMATTED_RIVER_DATA_FILENAME, BASE_MAP_WITH_RIVERS_OUTPUT_FILENAME);
 		//		new RiverProcessor().drawRivers(SIMPLIFIED_RIVER_DATA_FILENAME, BASE_MAP_WITH_SIMPLIFIED_RIVERS_OUTPUT_FILENAME, false);
@@ -817,7 +876,7 @@ public class RiverProcessor {
 		//		new RiverProcessor().test6();
 		//		new RiverProcessor().test7();
 		//		new RiverProcessor().test8();
-		new RiverProcessor().test9();
+//		new RiverProcessor().test9();
 
 		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(2,0), new PointInt(0,0), new PointInt(1,0)));
 		//		System.out.println(GeometryUtils.sharesSegmentWith(new PointInt(0,0), new PointInt(1,0), new PointInt(0,0), new PointInt(2,0)));

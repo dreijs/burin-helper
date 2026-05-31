@@ -21,17 +21,17 @@ public class MapOperator {
 		return (col1r - col2r) * (col1r - col2r) + (col1g - col2g) * (col1g - col2g) + (col1b - col2b) * (col1b - col2b);
 	}
 
-	static int similarity(int a, int b) {
+	static double similarity(int a, int b) {
 		int result = 0;
 		// water status is very important
-		if(a % 16 == 0 && b % 16 == 0) return 32;
-		else if(a % 16 > 0 && b % 16 > 0) result = 4 * Math.max(0, 8 - Math.abs(a-b));
+		if(a % 16 == 0 && b % 16 == 0) return 64;
+		else if(a % 16 > 0 && b % 16 > 0) result = 8 * Math.max(0, 8 - Math.abs(a-b));
 		else return 1;
 
 		int n = (int) Math.ceil(Math.log(Math.max(a, b))/Math.log(16));
 		for(int i=1;i<n;i++) {
 			int z = (int) Math.pow(16,i);
-			if((a / z) % 16 == (b / z) % 16) result += 16;
+			if((a / z) % 16 == (b / z) % 16) result += 32;
 		}
 
 		return result;
@@ -128,16 +128,19 @@ public class MapOperator {
 		return true;
 	}
 
-	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale) {
+	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, String traceFolder, boolean trace) {
 		int numRegions = oldResult.numRegions;
 		int[][] regionData = oldResult.regions;
 		int[][] result = new int[regionData.length][regionData[0].length];
 
-		int w = regionData.length;
-		int h = regionData[0].length;
+//		int w = regionData.length;
+//		int h = regionData[0].length;
 
 		double[] sizes = new double[numRegions];
 		int[] terrains = new int[numRegions];
+		
+		int w = (int) (regionData.length/(maxX - minX));
+		int h = (int) (regionData[0].length/(maxY - minY));
 
 		for (int x = 0; x < regionData.length; x++) {
 			for (int y = 0; y < regionData[x].length; y++) {
@@ -158,13 +161,13 @@ public class MapOperator {
 			}
 		}
 
-		FileOperator.writeImage(smalls, System.getProperty("user.dir")+"\\output\\map\\polygons\\small_regions.png");
+		if(trace) FileOperator.writeImage(smalls, traceFolder+"small_regions.png");
 
 
 		int nChanged = 1;
 
-		int s = 4 * scale;
-		int t = 64 * s * scale; // quadratic?
+		int s = 32;
+		int t = 256 * scale;
 		int d = 3;
 		
 		boolean[] keep = new boolean[sizes.length];
@@ -189,7 +192,7 @@ public class MapOperator {
 				for (int y = 0; y < result[x].length; y++) {
 					if(remove[result[x][y]] || sizes[result[x][y]] < threshold && !keep[result[x][y]]) {
 						if(!isEssentialForCohesion(newResult, x, y)) {
-							Map<Integer,Integer> scores = new HashMap<Integer,Integer>();
+							Map<Integer,Double> scores = new HashMap<Integer,Double>();
 							int r1 = result[x][y];
 							for(int n=0;n<VON_NEUMANN_NBS.length;n++) {
 								int xx = x + VON_NEUMANN_NBS[n][0];
@@ -210,13 +213,13 @@ public class MapOperator {
 									if(xx >= 0 && xx < result.length && yy >= 0 && yy < result[0].length) {
 										for(int key : scores.keySet()) {
 											int r2 = result[xx][yy];
-											scores.put(key, scores.get(key) + s * similarity(terrains[r1], terrains[r2]) * similarity(terrains[key], terrains[r2]) / 32);
+											scores.put(key, scores.get(key) + similarity(terrains[r1], terrains[r2]) * similarity(terrains[key], terrains[r2]) / 32);
 										}
 									}
 								}
 							}
 
-							int max = -1;
+							double max = -1;
 							int argmax = -1;
 							for(int key : scores.keySet()) {
 								if(scores.get(key) > max) {
@@ -556,23 +559,6 @@ public class MapOperator {
 				}
 				if(isSupportedTerrain) {
 					newData[x * wTgt / wOri][y * hTgt / hOri] = v;
-					if(x > 0 && x <baseData.length-1 && y > 0 && y < baseData[x].length - 1) {
-						//						newData[x * wTgt / wOri+1][y * hTgt / hOri+1] = v;
-						//						newData[x * wTgt / wOri-1][y * hTgt / hOri-1] = v;
-						//						newData[x * wTgt / wOri][y * hTgt / hOri+1] = v;
-						//						newData[x * wTgt / wOri][y * hTgt / hOri-1] = v;
-						//						newData[x * wTgt / wOri+1][y * hTgt / hOri+1] = v;
-						//						newData[x * wTgt / wOri+1][y * hTgt / hOri-1] = v;
-						//						newData[x * wTgt / wOri-1][y * hTgt / hOri+1] = v;
-						//						newData[x * wTgt / wOri-1][y * hTgt / hOri-1] = v;
-						//						if(baseData[x-1][y] == v && baseData[x+1][y] == v && baseData[x][y-1] == v && baseData[x][y+1] == v) {
-						//							for(int xx = x * wTgt / wOri; xx < (x+1) * wTgt / wOri; xx++) {
-						//								for(int yy = y * hTgt / hOri; yy < (y+1) * hTgt / hOri; yy++) {
-						//									newData[xx][yy] = v;
-						//								}
-						//							}
-						//						}
-					}
 				}
 			}
 		}
@@ -684,7 +670,7 @@ public class MapOperator {
 			newData = rescaleMap(newData, terrains, spreadableTerrains, outputFileName, i * baseData.length, i * baseData[0].length);
 		}
 
-		return rescaleMap(newData, terrains, spreadableTerrains, outputFileName);
+		return rescaleMap(newData, terrains, spreadableTerrains, outputFileName, wTgt, hTgt);
 	}
 
 	public static int[][] rescaleMap(int[][] baseData, int[] terrains, int[] spreadableTerrains, String outputFileName) {

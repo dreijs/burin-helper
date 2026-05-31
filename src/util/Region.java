@@ -367,14 +367,17 @@ public class Region {
 		int[] indices = getSegmentIndices(p1, p2, oppRegion);
 		if(indices == null) return true;
 
+		List<Point> points = new ArrayList<Point>();
 		int n = polygon.size();
 		for (int i = indices[1] % n; i != indices[0]; i = (i+1) % n) {
+			points.add(polygon.get(i));
 			int j = (i + 1) % n;
 			if(GeometryUtils.doSegmentsIntersect(polygon.get(i), polygon.get(j), polygon.get(indices[0]), polygon.get(indices[1]))) {
 				return false;
 			}
 		}
-		return true;
+		if(points.size() > 2) return GeometryUtils.isValidPolygon(points);
+		return false;
 	}
 
 	public Point[] getSegmentPoints(int[] indices, int oppRegion) {
@@ -486,6 +489,46 @@ public class Region {
 			if(k < opposingRivers.size()) idx2 = opposingRivers.get(k);
 			if(idx2 >= 0) s += ("("+p.xInt()+","+p.yInt()+","+idx+",&"+idx2+")");
 			else s += ("("+p.xInt()+","+p.yInt()+","+idx+")");
+			if(k<polygon.size()-1) s += (", ");
+		}
+		return s;
+	}
+	
+	public String toFloatString() {
+		String s ="--- region "+regionIdx; 
+		if(drawOrder >= 0) s += (", #"+drawOrder); 
+		else s += (", ##"); 
+		s += (", "+colorData);
+		if(triangleDrawOrder.length > 0) {
+			s += (", "); 
+			for(int j=0;j<triangleDrawOrder.length;j++) {
+				if(getBit(triangleDrawOrder,j)) s += ("1");
+				else s += ("0");
+			}
+		}
+		if(outerNeighbors.size() > 0) {
+			s += (", "); 
+			for(int j=0;j<outerNeighbors.size();j++) {
+				if(j>0) s += (","); 
+				s += (""+outerNeighbors.get(j));
+			}
+		}
+		if(innerNeighbors.size() > 0) {
+			s += (", "); 
+			for(int j=0;j<innerNeighbors.size();j++) {
+				if(j>0) s += (","); 
+				s += (""+innerNeighbors.get(j));
+			}
+		}
+		s += (" ---\n"); 
+		for(int k=0;k<polygon.size();k++) {
+			Point p = polygon.get(k);
+			int idx = -2;
+			int idx2 = -1;
+			if(k < opposingRegions.size()) idx = opposingRegions.get(k);
+			if(k < opposingRivers.size()) idx2 = opposingRivers.get(k);
+			if(idx2 >= 0) s += ("("+p.xFloat()+","+p.yFloat()+","+idx+",&"+idx2+")");
+			else s += ("("+p.xFloat()+","+p.yFloat()+","+idx+")");
 			if(k<polygon.size()-1) s += (", ");
 		}
 		return s;

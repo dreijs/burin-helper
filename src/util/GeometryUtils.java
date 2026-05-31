@@ -37,11 +37,29 @@ class LineStringAndAngle {
 		this.c = c;
 		this.angle = angle;
 	}
+	
+	public String toString() {
+		return angle+": "+c;
+	}
 }
 
 public class GeometryUtils {
 
 	public static final Double EPSILON = 1e-9;
+	
+	public static boolean areNonIntersectingLines(List<Point> points1, List<Point> points2) {
+		int n1 = points1.size();
+		int n2 = points2.size();
+		for(int i=0;i<n1-1;i++) {
+			int ii = (i+1);
+			for(int j=0;j<n2-1;j++) {
+				int jj = (j+1);
+
+				if(doSegmentsIntersect(points1.get(i), points1.get(ii), points2.get(j), points2.get(jj))) return false;
+			}
+		}
+		return true;
+	}
 
 	public static boolean isNonIntersectingPolygon(List<Point> points) {
 		int n = points.size();
@@ -277,6 +295,13 @@ public class GeometryUtils {
 			i.next();
 		}
 		return Math.abs(area / 2.0);
+	}
+	
+	public static boolean doBoundingBoxesIntersect(List<Point> l1, List<Point> l2) {
+		Rectangle2D.Double box1 = getFloatBoundingBoxFromList(l1); // x, y, width, height
+		Rectangle2D.Double box2 = getFloatBoundingBoxFromList(l2);
+        
+        return box1.intersects(box2);
 	}
 
 	public static Rectangle getIntegerBoundingBoxFromList(List<Point> l) {
@@ -548,9 +573,13 @@ public class GeometryUtils {
 		
 		return pointList;
 	}
-
+	
 	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines) {
-		return splitPolygon(polygonPoints, lines, 0);
+		return splitPolygon(polygonPoints, lines, 0, "", false);
+	}
+
+	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, String traceFolder, boolean trace) {
+		return splitPolygon(polygonPoints, lines, 0, traceFolder, trace);
 	}
 	
 	public static boolean isValidPolygon(List<Point> polygonPoints) {
@@ -564,7 +593,7 @@ public class GeometryUtils {
 		return false;
 	}
 
-	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, int idx) {
+	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, int idx, String traceFolder, boolean trace) {
 		ArrayList<List<Point>> result = new ArrayList<List<Point>>();
 		GeometryFactory gf = new GeometryFactory();
 
@@ -577,7 +606,7 @@ public class GeometryUtils {
 			if(geo instanceof MultiPolygon) {
 				System.out.println(geo);
 				System.out.println(idx);
-				PolygonCreator.visualizePolygon(polygonPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\debug_multipolygon.png", 32);
+				if(trace) PolygonCreator.visualizePolygon(polygonPoints, traceFolder+"debug_multipolygon.png", 32);
 			}
 			polygon = (Polygon) org.locationtech.jts.geom.util.GeometryFixer.fix(polygon);
 		}
@@ -622,7 +651,7 @@ public class GeometryUtils {
 			Collection<Polygon> polygons = polygonizer.getPolygons();
 			Collection<LineString> dangles = polygonizer.getDangles(); 
 
-//			int bbb = 28895;
+//			int bbb = 444;
 //			if(idx == bbb) {
 //				System.out.println("polygon "+bbb);
 //				int ii=0;
@@ -719,23 +748,51 @@ public class GeometryUtils {
 						points.add(new PointFloat(c.x, c.y));
 						if(dangleMap.keySet().contains(i)) {
 							int iprev = i>0 ? i-1: coords.size()-2;
+							int inext = i+1 % coords.size();
 							Coordinate cprev = coords.get(iprev);
+							Coordinate cnext = coords.get(inext);
 							double angleprev = Math.atan2(cprev.y - c.y, cprev.x - c.x) + Math.PI;
+							double anglenext = Math.atan2(cnext.y - c.y, cnext.x - c.x) + Math.PI;
 							if(angleprev > 2 * Math.PI - EPSILON) angleprev = 0;
-//							if(idx == bbb) System.out.println(angleprev+" "+cprev+" to "+c+" ");
+							if(anglenext > 2 * Math.PI - EPSILON) anglenext = 0;
+							
+//							if(idx == bbb) {
+//								System.out.println("*"+angleprev+" "+cprev+" to "+c+" ("+i+")");
+//								System.out.println("*"+anglenext+" "+cnext+" to "+c+" ("+i+")");
+//								System.out.println(dangleMap.get(i));
+//							}
 							
 							List<LineStringAndAngle> list = new ArrayList<LineStringAndAngle>();
+							double minDiff = 2 * Math.PI;
+							int direction = 0;
 							
 							for(LineString dangle : dangleMap.get(i)) {
 								double angle = Math.atan2(dangle.getCoordinateN(1).y - c.y, dangle.getCoordinateN(1).x - c.x) + Math.PI;
-//								if(idx == bbb) System.out.println(angle+" "+Math.abs(angle - angleprev));
-								list.add(new LineStringAndAngle(dangle, Math.abs(angle - angleprev)));
+								if(anglenext > angleprev) {
+									if(angle > angleprev && angle < anglenext) direction = 1;
+									else direction = -1;
+								} else {
+									if(angle > anglenext && angle < angleprev) direction = -1;
+									else direction = 1;
+								}
+//								double angleDiff = Math.min(angle - angleprev, angleprev - angle);
+//								if(angleDiff < minDiff) {
+//									if(angle > angleprev) direction = -1;
+//									else direction = 1;
+//								}
+//								if(angle > Math.PI - EPSILON) angle -= Math.PI;
+//								if(idx == bbb) System.out.println(dangle.getCoordinateN(1)+" to "+c+", "+angle+", "+Math.abs(angle - angleprev));
+//								double angle = Math.atan2(c.y - dangle.getCoordinateN(1).y, c.x - dangle.getCoordinateN(1).x) + Math.PI;
+								double angleDiff = direction*(angle - angleprev);
+								if(angleDiff < 0) angleDiff += 2*Math.PI;
+//								if(idx == bbb) System.out.println("& "+angle+", "+(angle - angleprev)+" "+(direction*(angle - angleprev))+" "+angleDiff+"("+c+" to "+dangle.getCoordinateN(1)+"), direction "+direction);
+								list.add(new LineStringAndAngle(dangle, angleDiff));
 							}
 							
 //							if(list.get(0).angle > angleprev && list.get(0).angle < anglenext) {
 //							if(anglenext < angleprev) {
 								list.sort((e1, e2) -> Double.compare(e1.angle, e2.angle));
-//							} else list.sort((e1, e2) -> Double.compare(e1.angle, e2.angle));
+//								if(idx == bbb) System.out.println(list);
 							
 							for(int ii=0;ii<list.size();ii++) {
 								LineString dangle = list.get(ii).c;

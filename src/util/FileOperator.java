@@ -51,6 +51,8 @@ public class FileOperator {
 
 		// Walk the file tree and delete each file/folder
 		try {
+			checkAndCreateDirectory(folderName);
+			
 			Files.walk(path)
 			.sorted(Comparator.reverseOrder()) // Delete children before parents
 			.filter(p -> !p.equals(path))      // Optional: keep the root folder
@@ -119,6 +121,51 @@ public class FileOperator {
 
 		return result;
 	}
+	
+	public static int[][] readImage(String fileName, int scale, double minX, double minY, double maxX, double maxY) {
+		int[][] result = null;
+		BufferedImage src;
+
+		try {
+			src = ImageIO.read(new File(updateFileName(fileName)));
+
+			int w = ((int) Math.round(src.getWidth() * (maxX - minX)))/scale;
+			int h = ((int) Math.round(src.getHeight() * (maxY - minY)))/scale;
+
+			result = new int[w][h];
+
+			for(int j=0;j<h;j++) {
+				for(int i=0;i<w;i++) {
+					if(scale == 1) {
+						result[i][j] = src.getRGB(((int) Math.round(minX * src.getWidth())) + scale*i, ((int) Math.round(minY * src.getHeight())) + scale*j);
+					} else {
+						Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+						for(int xx=0;xx<scale;xx++) {
+							for(int yy=0;yy<scale;yy++) {
+								int v = src.getRGB(((int) Math.round(minX * src.getWidth())) + scale*i+xx, ((int) Math.round(minY * src.getHeight())) + scale*j+yy);
+								if(map.get(v) == null) map.put(v,1);
+								else map.put(v, map.get(v)+1);
+							}
+						}
+						int max = -1;
+						int argMax = 0;
+						for(int v : map.keySet()) {
+							if(map.get(v) > max) {
+								max = map.get(v);
+								argMax = v;
+							}
+						}
+						result[i][j] = argMax;
+					}
+				}
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return result;
+	}
 
 	public static int[][] readImageMix(String fileName, int scale) {
 		int[][] result = null;
@@ -152,7 +199,12 @@ public class FileOperator {
 		return result;
 	}
 
-	public static void checkAndCreateDirectory(String fileName) throws IOException {
+	public static void checkAndCreateDirectory(String folderName) throws IOException {
+		Path path = Paths.get(folderName);
+		Files.createDirectories(path);
+	}
+	
+	public static void checkAndCreateParentDirectory(String fileName) throws IOException {
 		Path path = Paths.get(fileName);
 		Files.createDirectories(path.getParent());
 	}
@@ -186,18 +238,23 @@ public class FileOperator {
 		File ImageFile = new File(updateFileName(fileName));
 
 		try {
-			checkAndCreateDirectory(fileName);
+			checkAndCreateParentDirectory(fileName);
 			ImageIO.write(image, "png", ImageFile);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-
+	
 	public static void printRegionListToFile(List<Region> regions, String fileName) {
+		printRegionListToFile(regions, fileName, false);
+	}
+
+	public static void printRegionListToFile(List<Region> regions, String fileName, boolean asFloat) {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
 			for(int i=0;i<regions.size();i++) {
 				Region region = regions.get(i);
-				writer.write(region.toString());
+				if(asFloat) writer.write(region.toFloatString());
+				else writer.write(region.toString());
 				if(i<regions.size()-1) writer.newLine();   // Write a new line character (platform-independent)
 			}
 			writer.flush();
@@ -258,10 +315,10 @@ public class FileOperator {
 		return idx;
 	}
 
-	public static void finalPrintPolygons(List<Region> regions, String triangleFileName, String edgeFileName, String pointFileName, int width, int height) {
+	public static void finalPrintPolygons(List<Region> regions, String folder, int width, int height) {
 		try {
-			checkAndCreateDirectory(triangleFileName);
-			BufferedWriter writer = new BufferedWriter(new FileWriter(triangleFileName));
+			checkAndCreateDirectory(folder);
+			BufferedWriter writer = new BufferedWriter(new FileWriter(folder+"Triangles.txt"));
 			int maxDrawOrder = -1;
 			for(Region region : regions) if(region.drawOrder > maxDrawOrder) maxDrawOrder = region.drawOrder;
 
@@ -350,16 +407,16 @@ public class FileOperator {
 										//										}
 
 										//										if(triangle == 134491 || triangle == 364463) {
-										if(j == 40149) {
-											System.out.println(triangle+": "+l+", region "+j);
-											System.out.println(edge1.i+" "+edge2.i+" "+edge3.i);
-											System.out.println(vertices);
-											System.out.println(oppRegions);
-											System.out.println(oppRivers);
-											System.out.println(oppColor1+", "+oppColor2);
-											riverTriangles.add(l);
-											PolygonCreator.visualizePolygon(l, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_166_triangles_"+triangle+".png", 64);
-										}
+//										if(j == 40149) {
+//											System.out.println(triangle+": "+l+", region "+j);
+//											System.out.println(edge1.i+" "+edge2.i+" "+edge3.i);
+//											System.out.println(vertices);
+//											System.out.println(oppRegions);
+//											System.out.println(oppRivers);
+//											System.out.println(oppColor1+", "+oppColor2);
+//											riverTriangles.add(l);
+//											PolygonCreator.visualizePolygon(l, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_166_triangles_"+triangle+".png", 64);
+//										}
 
 										writer.write(edge1.i+","+edge2.i+","+edge3.i+","+edge1.b+","+edge2.b+","+edge3.b);
 										if(z2 == 0) writer.write(","+region.colorData);
@@ -388,14 +445,14 @@ public class FileOperator {
 			System.out.println("num edges: "+edges.size());
 			System.out.println("num points: "+points.size());
 
-			System.out.println(edgeAdjacents.get(216932));
-			System.out.println(edgeAdjacentColors.get(216932));
+//			System.out.println(edgeAdjacents.get(216932));
+//			System.out.println(edgeAdjacentColors.get(216932));
 
 			// edges
 
-			int rrr = 166;
+//			int rrr = 166;
 			List<List<Point>> riverPoints = new ArrayList<List<Point>>();
-			writer = new BufferedWriter(new FileWriter(edgeFileName));
+			writer = new BufferedWriter(new FileWriter(folder+"Edges.txt"));
 			for(int i=0;i<edges.size();i++) {
 				if(i > 0) writer.write("\n");
 				writer.write(edges.get(i));
@@ -409,18 +466,18 @@ public class FileOperator {
 						if(edgeAdjacentColors.get(i).get(j) >= 0 && !indices.contains(z)) indices.add(z);
 					}
 					if(indices.size() > 0) {
-						if(indices.get(0) == rrr) {
-							String[] s = edges.get(i).split(",");
-							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
-							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
-							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
-							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
-							List<Point> l =new ArrayList<Point>();
-							l.add(p1);
-							l.add(p2);
-							riverPoints.add(l);
-							System.out.println("edge "+i+" --- "+edgeAdjacents.get(i)+" --- "+edgeAdjacentColors.get(i)+", "+indices+", "+l);
-						}
+//						if(indices.get(0) == rrr) {
+//							String[] s = edges.get(i).split(",");
+//							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
+//							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
+//							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
+//							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
+//							List<Point> l =new ArrayList<Point>();
+//							l.add(p1);
+//							l.add(p2);
+//							riverPoints.add(l);
+//							System.out.println("edge "+i+" --- "+edgeAdjacents.get(i)+" --- "+edgeAdjacentColors.get(i)+", "+indices+", "+l);
+//						}
 						writer.write(","+indices.get(0));
 					}
 					if(indices.size() > 1) System.out.println("Warning: edge "+i+" has more than 1 adjacent rivers: "+edgeAdjacentColors.get(i));
@@ -428,18 +485,18 @@ public class FileOperator {
 					if(edgeAdjacentColors.get(i).size() > 1) System.out.println("Warning: edge "+i+" has more than 1 adjacent colors: "+edgeAdjacentColors.get(i));
 					if(edgeAdjacentColors.get(i).get(0) >= 0) {
 						writer.write(",-1,"+edgeAdjacentColors.get(i).get(0));
-						if(edgeAdjacentColors.get(i).get(0) == rrr) {
-							String[] s = edges.get(i).split(",");
-							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
-							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
-							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
-							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
-							List<Point> l =new ArrayList<Point>();
-							l.add(p1);
-							l.add(p2);
-							riverPoints.add(l);
-							System.out.println("edge "+i+" -*- "+edgeAdjacents.get(i)+" -*- "+edgeAdjacentColors.get(i)+", , "+l);
-						}
+//						if(edgeAdjacentColors.get(i).get(0) == rrr) {
+//							String[] s = edges.get(i).split(",");
+//							String[] p1s = points.get(Integer.parseInt(s[0])).split(",");
+//							String[] p2s = points.get(Integer.parseInt(s[1])).split(",");
+//							Point p1 = new PointFloat(Double.parseDouble(p1s[0]), Double.parseDouble(p1s[1]));
+//							Point p2 = new PointFloat(Double.parseDouble(p2s[0]), Double.parseDouble(p2s[1]));
+//							List<Point> l =new ArrayList<Point>();
+//							l.add(p1);
+//							l.add(p2);
+//							riverPoints.add(l);
+//							System.out.println("edge "+i+" -*- "+edgeAdjacents.get(i)+" -*- "+edgeAdjacentColors.get(i)+", , "+l);
+//						}
 					} else writer.write(","+edgeAdjacentColors.get(i).get(0));
 				}
 
@@ -448,11 +505,11 @@ public class FileOperator {
 			}
 			writer.close();
 
-			PolygonCreator.visualizePolygons(riverTriangles, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_some_triangles.png", 64);
-			PolygonCreator.visualizePolygons(riverPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_from_edges.png", 64);
+//			PolygonCreator.visualizePolygons(riverTriangles, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_some_triangles.png", 64);
+//			PolygonCreator.visualizePolygons(riverPoints, System.getProperty("user.dir")+"\\output\\map\\polygons\\river_"+rrr+"_from_edges.png", 64);
 			// points
 
-			writer = new BufferedWriter(new FileWriter(pointFileName));
+			writer = new BufferedWriter(new FileWriter(folder+"Points.txt"));
 			for(int i=0;i<points.size();i++) {
 				if(i > 0) writer.write("\n");
 				writer.write(points.get(i));
