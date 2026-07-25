@@ -19,6 +19,8 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 
 import vectormaps.PolygonCreator;
+import vectormaps.ElevationMapCreator.MapName;
+import vectormaps.ElevationMapCreator.Trace;
 
 class IntBoolAsIntPair {
 	int i;
@@ -34,7 +36,42 @@ public class FileOperator {
 
 	static final int WIDTH = 16384;
 	static final int HEIGHT = 16384;
-	static final double SCALE = 1000000;
+	static final double ROUNDING_SCALE = 1000000;
+	
+	public static void writeParameterSpecFile(String folderName,
+			MapName name,
+			int scale,
+			double minRegionSize, 
+			double distortFactor, 
+			double maxDouglasPeuckerDist, 
+			double maxDouglasPeuckerSize, 
+			double maxRiverDPDist,
+			int w,
+			int h,
+			int level,
+			Trace trace) {
+		
+		try {
+			checkAndCreateParentDirectory(folderName+"parameters.txt");
+			
+			BufferedWriter writer = new BufferedWriter(new FileWriter(folderName+"parameters.txt"));
+			writer.write("map name: "+name);
+			writer.write("\nscale: "+scale);
+			writer.write("\nminRegionSize: "+minRegionSize);
+			writer.write("\ndistortFactor: "+distortFactor);
+			writer.write("\nmaxDouglasPeuckerDist: "+maxDouglasPeuckerDist);
+			writer.write("\nmaxDouglasPeuckerSize: "+maxDouglasPeuckerSize);
+			writer.write("\nmaxRiverDPDist: "+maxRiverDPDist);
+			writer.write("\nw: "+w);
+			writer.write("\nh: "+h);
+			writer.write("\nlevel: "+level);
+			writer.write("\ntrace: "+trace);
+			
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 	public static String updateFileName(String x) {
 		// depending on Windows or macOS, flip the slashes
@@ -298,14 +335,14 @@ public class FileOperator {
 		return new IntBoolAsIntPair(idx, 1);
 	}
 
-	public static String pointToString(Point p, int width, int height) {
-		double xString = Math.round(SCALE*(p.xFloat()/width * 360 - 180))/SCALE;
-		double yString = Math.round(SCALE*(p.yFloat()/height * 180 - 90))/SCALE;
+	public static String pointToString(Point p, double minX, double minY, double maxX, double maxY, int width, int height) {
+		double xString = Math.round(ROUNDING_SCALE*((maxX - minX) * p.xFloat()/width - 0.5 + minX)*360)/ROUNDING_SCALE;
+		double yString = Math.round(ROUNDING_SCALE*((maxY - minY) * p.yFloat()/height - 0.5 + minY)*180)/ROUNDING_SCALE;
 		return xString+","+yString;
 	}
 
-	public static int checkAndAddPoint(List<String> list, Map<String,Integer> reverseMap, Point p, int width, int height) {
-		String s = pointToString(p, width, height);
+	public static int checkAndAddPoint(List<String> list, Map<String,Integer> reverseMap, Point p, double minX, double minY, double maxX, double maxY, int width, int height) {
+		String s = pointToString(p, minX, minY, maxX, maxY, width, height);
 		if(reverseMap.containsKey(s)) {
 			return reverseMap.get(s);
 		}
@@ -315,7 +352,8 @@ public class FileOperator {
 		return idx;
 	}
 
-	public static void finalPrintPolygons(List<Region> regions, String folder, int width, int height) {
+	public static void finalPrintPolygons(List<Region> regions, String folder, double minX, double minY, double maxX, double maxY, int width, int height) {
+		System.out.println(minX+", "+minY+", "+maxX+", "+maxY+", "+width+", "+height);
 		try {
 			checkAndCreateDirectory(folder);
 			BufferedWriter writer = new BufferedWriter(new FileWriter(folder+"Triangles.txt"));
@@ -333,7 +371,7 @@ public class FileOperator {
 			int triangle = 0;
 
 			// triangles
-			List<List<Point>> riverTriangles = new ArrayList<List<Point>>();
+//			List<List<Point>> riverTriangles = new ArrayList<List<Point>>();
 
 			for(int d=maxDrawOrder;d>=0;d--) {
 				for(int j=0;j<regions.size();j++) {
@@ -357,9 +395,9 @@ public class FileOperator {
 									l.add(p1); l.add(p2); l.add(p3);
 
 									if(region.getBit(region.triangleDrawOrder, z1)) {
-										int p1i = checkAndAddPoint(points, pointReverseMap, p1, width, height);
-										int p2i = checkAndAddPoint(points, pointReverseMap, p2, width, height);
-										int p3i = checkAndAddPoint(points, pointReverseMap, p3, width, height);
+										int p1i = checkAndAddPoint(points, pointReverseMap, p1, minX, minY, maxX, maxY, width, height);
+										int p2i = checkAndAddPoint(points, pointReverseMap, p2, minX, minY, maxX, maxY, width, height);
+										int p3i = checkAndAddPoint(points, pointReverseMap, p3, minX, minY, maxX, maxY, width, height);
 
 										addPointAdjacent(pointAdjacents, p1i, triangle);
 										addPointAdjacent(pointAdjacents, p2i, triangle);

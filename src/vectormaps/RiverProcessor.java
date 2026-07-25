@@ -426,14 +426,14 @@ public class RiverProcessor {
 		return pointMap;
 	}
 
-	static void convertRiverData(Map<String,List<List<Point>>> pointMap, int w, int h) {
+	static void convertRiverData(Map<String,List<List<Point>>> pointMap, int minX, int minY, int w, int h) {
 		for(String s : pointMap.keySet()) {
 			for(int i=0;i<pointMap.get(s).size();i++) {
 				for(int j=0;j<pointMap.get(s).get(i).size();j++) {	
 					Point p = pointMap.get(s).get(i).get(j);
-					double x = w * (p.xFloat() + 180000000) / 360000000;
-					double y = h * (p.yFloat() + 90000000) / 180000000;
-					Point p2 = new PointFloat(x, h - y - 1);
+					double x = w * (p.xFloat() + 180000000) / 360000000 - minX;
+					double y = h * (1 - (p.yFloat() + 90000000) / 180000000) - minY;
+					Point p2 = new PointFloat(x, y);
 					pointMap.get(s).get(i).set(j, p2);
 				}
 			}

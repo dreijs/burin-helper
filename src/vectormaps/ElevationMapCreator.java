@@ -28,6 +28,10 @@ public class ElevationMapCreator {
 	    EARTH_1_CE, EARTH_16K_BCE, TES_NIRN, FF6_OVERWORLD
 	}
 	
+	public enum Trace {
+	    NONE, VISUAL_REGIONS, VISUAL_POLYGONS, TEXT, REGIONS_AND_TEXT, ALL
+	}
+	
 	public static String getElevationInputFilename(MapName name) {
 		if(name == MapName.EARTH_1_CE) return System.getProperty("user.dir")+"\\input\\map\\earth\\gebco_08_rev_elev_21600x10800.png";
 		if(name == MapName.EARTH_16K_BCE) return System.getProperty("user.dir")+"\\input\\map\\earth\\gebco_08_rev_elev_21600x10800.png";

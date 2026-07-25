@@ -8,6 +8,7 @@ import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 
 import util.GeometryUtils;
+import vectormaps.ElevationMapCreator.Trace;
 import vectormaps.PolygonCreator;
 
 import java.util.ArrayList;
@@ -575,10 +576,10 @@ public class GeometryUtils {
 	}
 	
 	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines) {
-		return splitPolygon(polygonPoints, lines, 0, "", false);
+		return splitPolygon(polygonPoints, lines, 0, "", Trace.NONE);
 	}
 
-	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, String traceFolder, boolean trace) {
+	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, String traceFolder, Trace trace) {
 		return splitPolygon(polygonPoints, lines, 0, traceFolder, trace);
 	}
 	
@@ -593,7 +594,7 @@ public class GeometryUtils {
 		return false;
 	}
 
-	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, int idx, String traceFolder, boolean trace) {
+	public static List<List<Point>> splitPolygon(List<Point> polygonPoints, List<List<Point>> lines, int idx, String traceFolder, Trace trace) {
 		ArrayList<List<Point>> result = new ArrayList<List<Point>>();
 		GeometryFactory gf = new GeometryFactory();
 
@@ -606,7 +607,7 @@ public class GeometryUtils {
 			if(geo instanceof MultiPolygon) {
 				System.out.println(geo);
 				System.out.println(idx);
-				if(trace) PolygonCreator.visualizePolygon(polygonPoints, traceFolder+"debug_multipolygon.png", 32);
+				if(PolygonCreator.traceVisualPolygons(trace)) PolygonCreator.visualizePolygon(polygonPoints, traceFolder+"debug_multipolygon.png", 32);
 			}
 			polygon = (Polygon) org.locationtech.jts.geom.util.GeometryFixer.fix(polygon);
 		}

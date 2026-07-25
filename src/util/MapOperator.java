@@ -5,6 +5,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import vectormaps.ElevationMapCreator.Trace;
+import vectormaps.PolygonCreator;
+
 public class MapOperator {
 
 	public static final int[][] VON_NEUMANN_NBS = {{0,1}, {1,0}, {0,-1}, {-1,0}};
@@ -128,7 +131,7 @@ public class MapOperator {
 		return true;
 	}
 
-	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, String traceFolder, boolean trace) {
+	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, String traceFolder, Trace trace) {
 		int numRegions = oldResult.numRegions;
 		int[][] regionData = oldResult.regions;
 		int[][] result = new int[regionData.length][regionData[0].length];
@@ -161,7 +164,7 @@ public class MapOperator {
 			}
 		}
 
-		if(trace) FileOperator.writeImage(smalls, traceFolder+"small_regions.png");
+		if(PolygonCreator.traceVisualRegions(trace)) FileOperator.writeImage(smalls, traceFolder+"small_regions.png");
 
 
 		int nChanged = 1;
