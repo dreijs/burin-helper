@@ -52,9 +52,11 @@ public class MapOperator {
 
 		for (int x = 0; x < regionData.length; x++) {
 			for (int y = 0; y < regionData[x].length; y++) {
-				if(idxList[regionData[x][y]] == -1) {
-					idxList[regionData[x][y]] = cRegionIdx;
-					cRegionIdx++;
+				if(regionData[x][y] < Integer.MAX_VALUE) {
+					if(idxList[regionData[x][y]] == -1) {
+						idxList[regionData[x][y]] = cRegionIdx;
+						cRegionIdx++;
+					}
 				}
 			}
 		}
@@ -66,9 +68,13 @@ public class MapOperator {
 
 		for (int x = 0; x < regionData.length; x++) {
 			for (int y = 0; y < regionData[x].length; y++) {
-				result[x][y] = idxList[regionData[x][y]];
+				if(regionData[x][y] < Integer.MAX_VALUE) {
+					result[x][y] = idxList[regionData[x][y]];
+				} else result[x][y] = Integer.MAX_VALUE;
 			}
 		}
+		
+		System.out.println("num regions: "+oldResult.numRegions+" to "+cRegionIdx);
 
 		return new RegionResult(result, type, cRegionIdx);
 	}
@@ -85,7 +91,7 @@ public class MapOperator {
 
 
 	public static boolean isEssentialForCohesion(int[][] data, int x, int y) {
-//		System.out.println("start");
+		//		System.out.println("start");
 		int w = data.length;
 		int h = data[0].length;
 		List<Integer> visited = new ArrayList<Integer>();
@@ -105,7 +111,7 @@ public class MapOperator {
 		visited.add(x * w + y);
 
 		while(newlyVisited.size() > 0) {
-//			System.out.println(newlyVisited.size());
+			//			System.out.println(newlyVisited.size());
 			List<Integer> additions = new ArrayList<Integer>();
 			for(int j=newlyVisited.size()-1;j>=0;j--) {
 				int xx = newlyVisited.get(j) / w;
@@ -131,36 +137,44 @@ public class MapOperator {
 		return true;
 	}
 
-	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, String traceFolder, Trace trace) {
+	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, int margin, String traceFolder, Trace trace) {
 		int numRegions = oldResult.numRegions;
 		int[][] regionData = oldResult.regions;
-		int[][] result = new int[regionData.length][regionData[0].length];
+		
+		int minXint = (int) Math.round(minX * regionData.length);
+		int minYint = (int) Math.round(minY * regionData[0].length);
+		int maxXint = (int) Math.round(maxX * regionData.length);
+		int maxYint = (int) Math.round(maxY * regionData[0].length);
+		
+		int minXintM = Math.max(0, minXint - margin);
+		int minYintM = Math.max(0, minYint - margin);
+		int maxXintM = Math.min(regionData.length, maxXint + margin);
+		int maxYintM = Math.min(regionData[0].length, maxYint + margin);
+		
+		int[][] result = new int[maxXintM - minXintM][maxYintM - minYintM];
 
-//		int w = regionData.length;
-//		int h = regionData[0].length;
+		//		int w = regionData.length;
+		//		int h = regionData[0].length;
 
 		double[] sizes = new double[numRegions];
 		int[] terrains = new int[numRegions];
-		
-		int w = (int) (regionData.length/(maxX - minX));
-		int h = (int) (regionData[0].length/(maxY - minY));
 
 		for (int x = 0; x < regionData.length; x++) {
 			for (int y = 0; y < regionData[x].length; y++) {
-				sizes[regionData[x][y]] += pixelSize(x, y, w, h);
-
-				result[x][y] = regionData[x][y];
-				terrains[regionData[x][y]] = terrainData[x][y];
+				if(regionData[x][y] < Integer.MAX_VALUE) sizes[regionData[x][y]] += pixelSize(x, y, regionData.length, regionData[0].length);
 			}
 		}
 
-		int[][] smalls = new int[regionData.length][regionData[0].length];
+		int[][] smalls = new int[maxXintM - minXintM][maxYintM - minYintM];
 
-		for (int x = 0; x < regionData.length; x++) {
-			for (int y = 0; y < regionData[x].length; y++) {
-				smalls[x][y] = 0xFFFFFFFF;
-				if(sizes[regionData[x][y]] < threshold) smalls[x][y] = 0xFFFF0000;
-				else if(terrains[regionData[x][y]] % 16 == 0) smalls[x][y] = 0xFF0000FF;
+		for (int x = minXintM; x < maxXintM; x++) {
+			for (int y = minYintM; y < maxYintM; y++) {
+				result[x - minXintM][y - minYintM] = regionData[x][y];
+				terrains[regionData[x][y]] = terrainData[x][y];
+				
+				smalls[x - minXintM][y - minYintM] = 0xFFFFFFFF;
+				if(sizes[regionData[x][y]] < threshold) smalls[x - minXintM][y - minYintM] = 0xFFFF0000;
+				else if(terrains[regionData[x][y]] % 16 == 0) smalls[x - minXintM][y - minYintM] = 0xFF0000FF;
 			}
 		}
 
@@ -172,7 +186,7 @@ public class MapOperator {
 		int s = 32;
 		int t = 256 * scale;
 		int d = 3;
-		
+
 		boolean[] keep = new boolean[sizes.length];
 		boolean[] remove = new boolean[sizes.length];
 
@@ -184,7 +198,7 @@ public class MapOperator {
 				remove = new boolean[sizes.length];
 			}
 
-			int[][] newResult = new int[regionData.length][regionData[0].length];
+			int[][] newResult = new int[maxXintM - minXintM][maxYintM - minYintM];
 			for (int x = 0; x < result.length; x++) {
 				for (int y = 0; y < result[x].length; y++) {
 					newResult[x][y] = result[x][y];
@@ -192,7 +206,7 @@ public class MapOperator {
 			}
 
 			for (int x = 0; x < result.length; x++) {
-				for (int y = 0; y < result[x].length; y++) {
+				for (int y = 0; y < result[0].length; y++) {
 					if(remove[result[x][y]] || sizes[result[x][y]] < threshold && !keep[result[x][y]]) {
 						if(!isEssentialForCohesion(newResult, x, y)) {
 							Map<Integer,Double> scores = new HashMap<Integer,Double>();
@@ -235,8 +249,8 @@ public class MapOperator {
 								newResult[x][y] = argmax;
 								keep[argmax] = true;
 								remove[result[x][y]] = true;
-								sizes[argmax] += pixelSize(x, y, w, h);
-								sizes[result[x][y]] -= pixelSize(x, y, w, h);
+								sizes[argmax] += pixelSize(x, y, regionData.length, regionData[0].length);
+								sizes[result[x][y]] -= pixelSize(x, y, regionData.length, regionData[0].length);
 								nChanged++;
 							}
 						}
@@ -249,92 +263,17 @@ public class MapOperator {
 
 			t = Math.max(0, t-1);
 		}
-
-		return cleanRegionIndices(new RegionResult(result, oldResult.type, numRegions));
+		
+		int[][] croppedResult = new int[maxXint - minXint][maxYint - minYint];
+		for(int i=0;i<croppedResult.length;i++) {
+			for(int j=0;j<croppedResult[0].length;j++) {
+				croppedResult[i][j] = result[i + (minXint - minXintM)][j + (minYint - minYintM)];
+			}
+		}
+		
+		return cleanRegionIndices(new RegionResult(croppedResult, oldResult.type, numRegions));
 	}
-
-	//	public static int[][] removeOrExpandLonePixels(int[][] baseData) {
-	//		int[][] newData = new int[baseData.length][baseData[0].length];
-	//
-	//		for (int x = 0; x < baseData.length; x++) {
-	//			for (int y = 0; y < baseData[x].length; y++) {
-	//				newData[x][y] = baseData[x][y];
-	//			}
-	//		}
-	//
-	//		int[][] nbs = {{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}};
-	//
-	//		for (int x = 0; x < baseData.length; x++) {
-	//			for (int y = 0; y < baseData[x].length; y++) {
-	//				if(x > 0 && x < baseData.length-1 && y > 0 && y < baseData[0].length-1) {
-	//					int v = baseData[x][y];
-	//					boolean changed = false;
-	//					if(v != baseData[x-1][y] && v != baseData[x+1][y] && v != baseData[x][y+1] && v != baseData[x][y-1]) {
-	//						if(v == baseData[x+1][y+1]) {
-	//							changed = true;
-	//							if(Math.random() < 0.5) {
-	//								newData[x][y+1] = v;
-	//							} else {
-	//								newData[x+1][y] = v;
-	//							}
-	//						}
-	//
-	//						if(v == baseData[x-1][y+1]) {
-	//							changed = true;
-	//							if(Math.random() < 0.5) {
-	//								newData[x][y+1] = v;
-	//							} else {
-	//								newData[x-1][y] = v;
-	//							}
-	//						}
-	//
-	//						if(v == baseData[x+1][y-1]) {
-	//							changed = true;
-	//							if(Math.random() < 0.5) {
-	//								newData[x][y-1] = v;
-	//							} else {
-	//								newData[x+1][y] = v;
-	//							}
-	//						}
-	//
-	//						if(v == baseData[x-1][y-1]) {
-	//							changed = true;
-	//							if(Math.random() < 0.5) {
-	//								newData[x][y-1] = v;
-	//							} else {
-	//								newData[x-1][y] = v;
-	//							}
-	//						}
-	//					}
-	//
-	//					if(!changed) {
-	//						Map<Integer,Integer> map = new HashMap<Integer,Integer>();
-	//						for(int n=0;n<nbs.length;n++) {
-	//							int xx = Math.floorMod(x + nbs[n][0], baseData.length);
-	//							int yy = y + nbs[n][1];
-	//							if(yy >= 0 && yy < baseData[0].length) {
-	//								if(!map.keySet().contains(baseData[xx][yy])) map.put(baseData[xx][yy], 1);
-	//								else map.put(baseData[xx][yy], map.get(baseData[xx][yy]) + 1);
-	//							}
-	//						}
-	//
-	//						int max = 0;
-	//						int argMax = 0;
-	//						for(int key : map.keySet()) {
-	//							if(map.get(key) > max) {
-	//								max = map.get(key);
-	//								argMax = key;
-	//							}
-	//						}
-	//
-	//						if(max >= 3) newData[x][y] = argMax;
-	//					}
-	//				}
-	//			}
-	//		}
-	//
-	//		return newData;
-	//	}
+	
 
 	public static int[][] fillByExtension(int[][] baseData, int[] terrains, int[] spreadableTerrains, int d, String outputFileName) {
 		return fillByExtension(baseData, terrains, spreadableTerrains, d, outputFileName, Integer.MAX_VALUE);
@@ -679,99 +618,5 @@ public class MapOperator {
 	public static int[][] rescaleMap(int[][] baseData, int[] terrains, int[] spreadableTerrains, String outputFileName) {
 		return rescaleMap(baseData, terrains, spreadableTerrains, outputFileName, 21600, 10800);
 	}
-
-	//	public static int[][] rescaleMap(int[][] baseData, int[] terrains, int[] spreadableTerrains, String outputFileName, int wTgt, int hTgt) {
-	//		int[][] nbs = {{0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}};
-	//		int changed = 1;
-	//		
-	//		int wOri = baseData.length;
-	//		int hOri = baseData[0].length;
-	//
-	//		int[][] newData = new int[wTgt][];
-	//		for (int x = 0; x < newData.length; x++) {
-	//			newData[x] = new int[hTgt];
-	//			for (int y = 0; y < newData[x].length; y++) {
-	//				newData[x][y] = 0xFFFFFFFF;
-	//			}
-	//		}
-	//		
-	//		for (int x = 0; x < baseData.length; x++) {
-	//			for (int y = 0; y < baseData[x].length; y++) {
-	//				int v = baseData[x][y];
-	//				boolean isSupportedTerrain = false;
-	//				for(int kk=0;kk<terrains.length;kk++) {
-	//					if(v == terrains[kk]) {
-	//						isSupportedTerrain = true;
-	//					}
-	//				}
-	//				if(isSupportedTerrain) {
-	//					newData[x * wTgt / wOri][y * hTgt / hOri] = v;
-	//					if(x > 0 && x <baseData.length-1 && y > 0 && y < baseData[x].length - 1) {
-	//						if(baseData[x-1][y] == v && baseData[x+1][y] == v && baseData[x][y-1] == v && baseData[x][y+1] == v
-	//							&& baseData[x-1][y-1] == v && baseData[x+1][y+1] == v && baseData[x+1][y-1] == v && baseData[x-1][y+1] == v) {
-	//							for(int xx = x * wTgt / wOri; xx < (x+1) * wTgt / wOri; xx++) {
-	//								for(int yy = y * hTgt / hOri; yy < (y+1) * hTgt / hOri; yy++) {
-	//									newData[xx][yy] = v;
-	//								}
-	//							}
-	//						}
-	//					}
-	//				}
-	//			}
-	//		}
-	//
-	//		while(changed > 0) {
-	//			changed = 0;
-	//			int[][] tempNewData = new int[newData.length][];
-	//
-	//			for (int x = 0; x < newData.length; x++) {
-	//				tempNewData[x] = new int[newData[x].length];
-	//				for (int y = 0; y < newData[x].length; y++) {
-	//					if(newData[x][y] == 0xFFFFFFFF) {
-	//						Map<Integer,Integer> map = new HashMap<Integer,Integer>();
-	//						for(int n=0;n<nbs.length;n++) {
-	//							int xx = x + nbs[n][0];
-	//							int yy = y + nbs[n][1];
-	//							if(xx >= 0 && xx < newData.length && yy >= 0 && yy < newData[0].length) {
-	//								int v = newData[xx][yy];
-	//								int matchIdx = -1;
-	//								for(int kk=0;kk<spreadableTerrains.length;kk++) {
-	//									if(v == spreadableTerrains[kk]) matchIdx = kk;
-	//								}
-	//								if(matchIdx >= 0) {
-	//									int match = spreadableTerrains[matchIdx];
-	//									if(!map.keySet().contains(match)) map.put(match, 1);
-	//									else map.put(match, map.get(match) + 1);
-	//								}
-	//							}
-	//						}
-	//
-	//						int max = 0;
-	//						int argMax = 0;
-	//						for(int key : map.keySet()) {
-	//							if(map.get(key) > max) {
-	//								max = map.get(key);
-	//								argMax = key;
-	//							}
-	//						}
-	//						if(Math.random() < 1. * max / 4) {
-	//							tempNewData[x][y] = argMax;
-	//							changed++;
-	//						} else tempNewData[x][y] = 0xFFFFFFFF;
-	//					} else {
-	//						tempNewData[x][y] = newData[x][y];
-	//					}
-	//				}
-	//			}
-	//
-	//			newData = tempNewData;
-	//			System.out.println(changed);
-	//		}
-	//
-	//		if(outputFileName != "") FileOperator.writeImage(newData, outputFileName);
-	//		System.out.println("done");
-	//		
-	//		return newData;
-	//	}
 
 }

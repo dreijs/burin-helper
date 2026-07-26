@@ -261,7 +261,7 @@ public class PolygonCreator {
 		return 0;
 	}
 
-	RegionResult findRegions(int[][] mapData, String traceFolder, Trace trace) {
+	RegionResult findRegions(int[][] mapData, int minX, int minY, int maxX, int maxY) {
 		// group map into regions
 
 		int[][] regionData = new int[mapData.length][mapData[0].length];
@@ -278,8 +278,8 @@ public class PolygonCreator {
 		while(nChanged > 0) {
 			nChanged = 0;
 
-			for (int x = 0; x < mapData.length; x++) {
-				for (int y = 0; y < mapData[x].length; y++) {
+			for (int x = minX; x < maxX; x++) {
+				for (int y = minY; y < maxY; y++) {
 
 					if(x > 0) {
 						if(mapData[x-1][y] == mapData[x][y]) {
@@ -317,20 +317,14 @@ public class PolygonCreator {
 		}
 
 		int[] type = new int[cRegion];
-		for (int x = 0; x < mapData.length; x++) {
-			for (int y = 0; y < mapData[x].length; y++) {
+		for (int x = minX; x < maxX; x++) {
+			for (int y = minY; y < maxY; y++) {
 				type[regionData[x][y]] = mapData[x][y];
 			}
 		}
 
-		System.out.println("original num regions "+cRegion);
-
 		RegionResult result = MapOperator.cleanRegionIndices(new RegionResult(regionData, type, cRegion));
-
-		if(traceVisualRegions(trace)) visualizeRegion(regionData, traceFolder+VISUAL_REGIONS_FILENAME);
-		if(traceVisualRegions(trace)) FileOperator.writeImage(regionData, traceFolder+REGIONS_FILENAME);
-
-		System.out.println((result.numRegions)+" regions");
+		
 		return result;
 	}
 
@@ -633,7 +627,7 @@ public class PolygonCreator {
 				}
 			}
 			drawOrder++;
-			System.out.println(drawOrder);
+			System.out.println("draw order: "+drawOrder);
 		}
 	}
 
@@ -760,11 +754,11 @@ public class PolygonCreator {
 		}
 	}
 
-	static int[][] initMapData(String inputFileName, int s, double minX, double minY, double maxX, double maxY) {
+	static int[][] initMapData(String inputFileName, int s) {
 		int[][] mapData = null;
 
 		try{
-			mapData = FileOperator.readImage(inputFileName, s, minX, minY, maxX, maxY);
+			mapData = FileOperator.readImage(inputFileName, s);
 			System.out.println("done reading");
 		} catch(Exception e){
 			System.out.println(e.getMessage());
@@ -774,10 +768,6 @@ public class PolygonCreator {
 	}
 
 	static int[][] mergeMapData(int s, MapName name) {
-		return mergeMapData(s, 0., 0., 1., 1., name);
-	}
-
-	static int[][] mergeMapData(int s, double minX, double minY, double maxX, double maxY, MapName name) {
 		String[] inputFileNames = new String[] {
 				ElevationMapCreator.getElevationLevelsFilename(name),
 				BiomeMapCreator.getRescaledBaseMapFilename(name),
@@ -810,7 +800,7 @@ public class PolygonCreator {
 		mappings.add(featureMap);
 
 		for(int i=0;i<inputFileNames.length;i++) {
-			data[i] = initMapData(inputFileNames[i], s, minX, minY, maxX, maxY);
+			data[i] = initMapData(inputFileNames[i], s);
 			if(w == 0) {
 				w = data[i].length;
 				h = data[i][0].length;
@@ -1039,10 +1029,52 @@ public class PolygonCreator {
 
 	List<Region> initRegions(int[][] mapData, int scale, double minSize, double minX, double minY, double maxX, double maxY, String traceFolder, Trace trace) {
 		System.out.println("start: create initial polygons");
+		
+		int margin = (int) Math.round(mapData.length * (maxX - minX) * 0.2);
+		// margins: for accurate small region removal, we need to look outside the tile
+		int minXint = (int) Math.round(minX * mapData.length);
+		int minYint = (int) Math.round(minY * mapData[0].length);
+		int maxXint = (int) Math.round(maxX * mapData.length);
+		int maxYint = (int) Math.round(maxY * mapData[0].length);
+		
+		int minXintM = Math.max(0, minXint - margin);
+		int minYintM = Math.max(0, minYint - margin);
+		int maxXintM = Math.min(mapData.length, maxXint + margin);
+		int maxYintM = Math.min(mapData[0].length, maxYint + margin);
+		
+		System.out.println(margin);
+		System.out.println(minX+" "+minY+" "+maxX+" "+maxY);
+		System.out.println(minXint+" "+minYint+" "+maxXint+" "+maxYint);
+		System.out.println(minXintM+" "+minYintM+" "+maxXintM+" "+maxYintM);
 
 		List<Region> regions = new ArrayList<Region>();
-		RegionResult regionResult = findRegions(mapData, traceFolder, trace);
-		regionResult = MapOperator.removeSmallRegionsInRegionMap(regionResult, mapData, minSize, Math.max(1, 4 / scale), minX, minY, maxX, maxY, traceFolder, trace);
+		// find contiguous regions to divide the map into polygons
+		RegionResult regionResult = findRegions(mapData, minXintM, minYintM, maxXintM, maxYintM);
+		
+		int[][] croppedRegions = new int[maxXint - minXint][maxYint - minYint];
+		int[][] croppedRecoloredRegions = new int[maxXint - minXint][maxYint - minYint];
+		for(int x=0; x<croppedRegions.length; x++) {
+			for(int y=0; y<croppedRegions[0].length; y++) {
+				croppedRegions[x][y] = regionResult.regions[x + minXint][y + minYint];
+				croppedRecoloredRegions[x][y] = regionResult.regions[x + minXint][y + minYint] + 0xFF000000;
+			}
+		}
+
+		if(traceVisualRegions(trace)) visualizeRegion(croppedRegions, traceFolder+VISUAL_REGIONS_FILENAME);
+		if(traceVisualRegions(trace)) FileOperator.writeImage(croppedRecoloredRegions, traceFolder+REGIONS_FILENAME);
+		
+		System.out.println("---");
+		
+		regionResult = MapOperator.removeSmallRegionsInRegionMap(regionResult, mapData, minSize, Math.max(1, 4 / scale), minX, minY, maxX, maxY, margin, traceFolder, trace);
+		// after cropping (removing small regions uses a margin to ensure that adjacent tiles have similar borders), some 'regions' may no longer be contiguous, so we need to find regions again:
+		croppedRegions = new int[maxXint - minXint][maxYint - minYint];
+		for(int x=0; x<croppedRegions.length; x++) {
+			for(int y=0; y<croppedRegions[0].length; y++) {
+				croppedRegions[x][y] = regionResult.type[regionResult.regions[x][y]];
+			}
+		}
+		regionResult = findRegions(croppedRegions, 0, 0, regionResult.regions.length, regionResult.regions[0].length);
+		
 		if(traceVisualRegions(trace)) visualizeRegion(regionResult.regions, traceFolder+VISUAL_REGIONS_SMALL_REMOVED_FILENAME);
 
 		for(int i=0;i<regionResult.numRegions;i++) {
@@ -1051,9 +1083,12 @@ public class PolygonCreator {
 			region.setColorData(regionResult.type[i]);
 		}
 		boolean[] done = new boolean[regionResult.numRegions];
+		
+		System.out.println(regionResult.regions.length+" v "+(maxXint - minXint));
+		System.out.println(regionResult.regions[0].length+" v "+(maxYint - minYint));
 
-		for (int x = 0; x < mapData.length; x++) {
-			for (int y = 0; y < mapData[x].length; y++) {
+		for (int x = 0; x < maxXint - minXint; x++) {
+			for (int y = 0; y < maxYint - minYint; y++) {
 				Region region = regions.get(regionResult.regions[x][y]);
 
 				if(!done[regionResult.regions[x][y]]) {
@@ -1209,6 +1244,8 @@ public class PolygonCreator {
 
 	void processMap(int[][] mapData, String outputFolder, String traceFolder, double minX, double minY, double maxX, double maxY, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, MapName name, Trace trace) {
 		List<Region> regions = initAndPruneMap(mapData, scale, minRegionSize, minX, minY, maxX, maxY, traceFolder, trace);
+		int w = (int) Math.round(mapData.length * (maxX - minX));
+		int h = (int) Math.round(mapData[0].length * (maxY - minY));
 
 		//		List<Region> regions = loadConnectedPolygons(traceFolder);
 
@@ -1218,7 +1255,7 @@ public class PolygonCreator {
 
 		if(traceText(trace)) FileOperator.printRegionListToFile(regions, traceFolder+POLYGONS_ORDERED_FILENAME);
 
-		addRandomNoise(regions, 123456L, distortFactor * scale, mapData.length, mapData[0].length);
+		addRandomNoise(regions, 123456L, distortFactor * scale, w, h);
 		System.out.println("done: added random noise");
 
 		if(traceText(trace)) FileOperator.printRegionListToFile(regions, traceFolder+POLYGONS_DISTORTED_FILENAME, true);
@@ -1229,18 +1266,18 @@ public class PolygonCreator {
 
 		if(traceText(trace)) FileOperator.printRegionListToFile(regions, traceFolder+POLYGONS_SIMPLIFIED_FILENAME, true);
 
-		addRiverData(regions, maxRiverDPDist, minX, minY, (int) Math.round(mapData.length/(maxX - minX)), (int) Math.round(mapData[0].length/(maxY - minY)), name, traceFolder, trace);
+		addRiverData(regions, maxRiverDPDist, minX, minY, (int) Math.round(w/(maxX - minX)), (int) Math.round(h/(maxY - minY)), name, traceFolder, trace);
 		System.out.println("done: added river data");
 		System.out.println(getTotalnumPoints(regions));
 
 		if(traceText(trace)) FileOperator.printRegionListToFile(regions, traceFolder+POLYGONS_FILTERED_FILENAME, true);
-		if(traceText(trace)) visualizeAllPolygons(regions, traceFolder+VISUAL_POLYGONS_FILENAME, mapData.length, mapData[0].length, 1);
-		if(traceText(trace)) visualizeAllPolygons(regions, traceFolder+VISUAL_POLYGONS_SCALED_FILENAME, scale * mapData.length, scale * mapData[0].length, scale);
+		if(traceVisualRegions(trace)) visualizeAllPolygons(regions, traceFolder+VISUAL_POLYGONS_FILENAME, w, h, 1);
+		if(traceVisualRegions(trace)) visualizeAllPolygons(regions, traceFolder+VISUAL_POLYGONS_SCALED_FILENAME, scale * w, scale * h, scale);
 
 		determineTriangleDrawOrders(regions, traceFolder, trace);
 		System.out.println("done: determine triangle draw order");
 
-		FileOperator.finalPrintPolygons(regions, outputFolder, minX, minY, maxX, maxY, mapData.length, mapData[0].length);
+		FileOperator.finalPrintPolygons(regions, outputFolder, minX, minY, maxX, maxY, w, h);
 	}
 
 	//	public void runSample(int scale, MapName name) {
@@ -1352,7 +1389,7 @@ public class PolygonCreator {
 			for(int x=0;x<w;x++) {
 				String polygonFolder = getPolygonFolderName(name)+"\\Level_"+level+"\\"+x+"_"+y+"\\";
 				String traceFolder = getTraceFolderName(name)+"\\Level_"+level+"\\"+x+"_"+y+"\\";
-				new PolygonCreator().processMap(mergeMapData(scale, 1. * x / w, 1. * y / h, 1. * (x+1) / w, 1. * (y + 1) / h, name),  polygonFolder, traceFolder, 1. * x / w, 1. * y / h, 1. * (x+1) / w, 1. * (y + 1) / h, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name, trace);
+				new PolygonCreator().processMap(mergeMapData(scale, name), polygonFolder, traceFolder, 1. * x / w, 1. * y / h, 1. * (x+1) / w, 1. * (y + 1) / h, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name, trace);
 			}
 		}
 		//		processMap(mergeMapData(scale, name), getPolygonFolderName(name)+"\\Level_1\\0_0\\", getTraceFolderName(name)+"\\Level_1\\0_0\\", scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name);
@@ -1370,18 +1407,18 @@ public class PolygonCreator {
 		// comment out as appropriate
 
 		// Earth, 1CE, zoom level 1, 2
-//		run(MapName.EARTH_1_CE, 4, 2000, 0.05, 20, 10, 200000, 1, 1, 1, false);
+//		run(MapName.EARTH_1_CE, 4, 2000, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
 		
 		// zoom level 2
-//		run(MapName.EARTH_1_CE, 2, 1000, 0.025, 10, 5, 100000, 8, 4, 2, false);
+//		run(MapName.EARTH_1_CE, 2, 1000, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
 		
 		// zoom level 3
-//		run(MapName.EARTH_1_CE, 1, 250, 0.0125, 5, 2.5, 50000, 16, 8, 3, false);
-//		run(MapName.EARTH_1_CE, 2, 1000, 0.05, 20, 10, 200000, 16, 8, 3, false);
-//		run(MapName.EARTH_1_CE, 2, 125, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_1_CE, 1, 250, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_1_CE, 2, 1000, 0.05, 20, 10, 200000, 16, 8, 3, Trace.REGIONS_AND_TEXT);
+		run(MapName.EARTH_1_CE, 2, 125, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
 		
 		// Earth, 16000BCE, zoom level 1
-		run(MapName.EARTH_16K_BCE, 4, 2000, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_16K_BCE, 4, 2000, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
 
 		// Nirn (the Elder Scrolls), zoom level 1
 		//				processMap(mergeMapData(8, MapName.TES_NIRN), getPolygonFolderName(MapName.TES_NIRN)+"\\Level_1\\0_0\\", getTraceFolderName(MapName.TES_NIRN)+"\\Level_1\\0_0\\", 8, 1500, 0.025, 20, 10, 100000, MapName.TES_NIRN, true);
