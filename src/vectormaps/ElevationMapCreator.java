@@ -233,9 +233,9 @@ public class ElevationMapCreator {
 
 	public static void main(String[] args) {
 		new ElevationMapCreator().run(MapName.EARTH_1_CE);
-		new ElevationMapCreator().run(MapName.EARTH_16K_BCE);
-		new ElevationMapCreator().run(MapName.TES_NIRN);
-		new ElevationMapCreator().run(MapName.FF6_OVERWORLD);
+//		new ElevationMapCreator().run(MapName.EARTH_16K_BCE);
+//		new ElevationMapCreator().run(MapName.TES_NIRN);
+//		new ElevationMapCreator().run(MapName.FF6_OVERWORLD);
 		
 //		new ElevationMapCreator().createBaseMap();
 //		new ElevationMapCreator().createElevationMap();

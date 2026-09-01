@@ -129,8 +129,8 @@ public class FeatureMapCreator {
 	}
 	
 	public int[][] getOceanPixels(MapName name) {
-		if(name == MapName.EARTH_1_CE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}};
-		if(name == MapName.EARTH_16K_BCE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}};
+		if(name == MapName.EARTH_1_CE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}, {13000, 2800}};
+		if(name == MapName.EARTH_16K_BCE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}, {13000, 2800}};
 		if(name == MapName.TES_NIRN) return new int[][] {{20000, 5000}, {12000, 6000}, {2500, 7500}};
 		if(name == MapName.FF6_OVERWORLD) return new int[][] {{6000, 2600}, {10200, 2600}, {950, 2600}};
 		return new int[][] {};
@@ -614,9 +614,9 @@ public class FeatureMapCreator {
 	}
 
 	public static void main(String[] args) {
-//		new FeatureMapCreator().run(MapName.EARTH_1_CE);
+		new FeatureMapCreator().run(MapName.EARTH_1_CE);
 //		new FeatureMapCreator().run(MapName.EARTH_16K_BCE);
-		new FeatureMapCreator().run(MapName.TES_NIRN);
+//		new FeatureMapCreator().run(MapName.TES_NIRN);
 //		new FeatureMapCreator().run(MapName.FF6_OVERWORLD);
 	}
 }

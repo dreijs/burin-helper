@@ -1407,27 +1407,33 @@ public class PolygonCreator {
 		// comment out as appropriate
 
 		// Earth, 1CE, zoom level 1, 2
-//		run(MapName.EARTH_1_CE, 2, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
-		
-		// zoom level 2
+//		run(MapName.EARTH_1_CE, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
+//		
+//		// zoom level 2
 //		run(MapName.EARTH_1_CE, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
-		
-		// zoom level 3
-//		run(MapName.EARTH_1_CE, 1, 250, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
-//		run(MapName.EARTH_1_CE, 2, 1000, 0.05, 20, 10, 200000, 16, 8, 3, Trace.REGIONS_AND_TEXT);
+//		
+//		// zoom level 3
 //		run(MapName.EARTH_1_CE, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
 		
 		// zoom level 4
 //		run(MapName.EARTH_1_CE, 2, 25, 0.0625, 2.5, 1.25, 25000, 32, 16, 4, Trace.VISUAL_REGIONS);
 		
 		// zoom level 5
-		run(MapName.EARTH_1_CE, 2, 5, 0.025, 1.25, 0.5, 12500, 64, 32, 5, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_1_CE, 2, 5, 0.025, 1.25, 0.5, 12500, 64, 32, 5, Trace.VISUAL_REGIONS);
 		
 		// Earth, 16000BCE, zoom level 1
-//		run(MapName.EARTH_16K_BCE, 4, 2000, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_16K_BCE, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
+		
+		// zoom level 2
+//		run(MapName.EARTH_16K_BCE, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
+		
+		// zoom level 3
+//		run(MapName.EARTH_16K_BCE, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
 
 		// Nirn (the Elder Scrolls), zoom level 1
-		//				processMap(mergeMapData(8, MapName.TES_NIRN), getPolygonFolderName(MapName.TES_NIRN)+"\\Level_1\\0_0\\", getTraceFolderName(MapName.TES_NIRN)+"\\Level_1\\0_0\\", 8, 1500, 0.025, 20, 10, 100000, MapName.TES_NIRN, true);
+		run(MapName.TES_NIRN, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
+		run(MapName.TES_NIRN, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
+		run(MapName.TES_NIRN, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
 
 		// Final Fantasy 6 (3) Overworld, zoom level 1
 		//		processMap(mergeMapData(4, MapName.FF6_OVERWORLD), getPolygonFolderName(MapName.FF6_OVERWORLD)+"\\Level_1\\0_0\\", getTraceFolderName(MapName.FF6_OVERWORLD)+"\\Level_1\\0_0\\", 8, 1500, 0.025, 20, 10, 100000, MapName.FF6_OVERWORLD, true);
