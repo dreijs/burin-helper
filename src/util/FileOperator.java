@@ -1,10 +1,15 @@
 package util;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,23 +42,32 @@ public class FileOperator {
 	static final int WIDTH = 16384;
 	static final int HEIGHT = 16384;
 	static final double ROUNDING_SCALE = 1000000;
+
+	// Must match FMapLowZoom.cpp's LevelDataMagic/LevelDataVersion exactly, or the binary layout
+	// this writes has diverged from what Unreal reads.
+	static final int LEVEL_DATA_MAGIC = 0x4255524E; // "BURN"
+	// 2 adds the cross-layer section at the end of each tile: the triangles that share ground with
+	// each triangle, and how much of it later-drawn ones hide. Regions overlap wherever one encloses
+	// another, and nothing before this recorded it.
+	static final int LEVEL_DATA_VERSION = 2;
 	
 	public static void writeParameterSpecFile(String folderName,
 			MapName name,
 			int scale,
-			double minRegionSize, 
-			double distortFactor, 
-			double maxDouglasPeuckerDist, 
-			double maxDouglasPeuckerSize, 
+			double minRegionSize,
+			double distortFactor,
+			double maxDouglasPeuckerDist,
+			double maxDouglasPeuckerSize,
 			double maxRiverDPDist,
+			int targetTrianglesPerGridCell,
 			int w,
 			int h,
 			int level,
 			Trace trace) {
-		
+
 		try {
 			checkAndCreateParentDirectory(folderName+"parameters.txt");
-			
+
 			BufferedWriter writer = new BufferedWriter(new FileWriter(folderName+"parameters.txt"));
 			writer.write("map name: "+name);
 			writer.write("\nscale: "+scale);
@@ -62,11 +76,12 @@ public class FileOperator {
 			writer.write("\nmaxDouglasPeuckerDist: "+maxDouglasPeuckerDist);
 			writer.write("\nmaxDouglasPeuckerSize: "+maxDouglasPeuckerSize);
 			writer.write("\nmaxRiverDPDist: "+maxRiverDPDist);
+			writer.write("\ntargetTrianglesPerGridCell: "+targetTrianglesPerGridCell);
 			writer.write("\nw: "+w);
 			writer.write("\nh: "+h);
 			writer.write("\nlevel: "+level);
 			writer.write("\ntrace: "+trace);
-			
+
 			writer.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -352,7 +367,7 @@ public class FileOperator {
 		return idx;
 	}
 
-	public static void finalPrintPolygons(List<Region> regions, String folder, double minX, double minY, double maxX, double maxY, int width, int height) {
+	public static void finalPrintPolygons(List<Region> regions, String folder, double minX, double minY, double maxX, double maxY, int width, int height, int targetTrianglesPerGridCell) {
 		System.out.println(minX+", "+minY+", "+maxX+", "+maxY+", "+width+", "+height);
 		try {
 			checkAndCreateDirectory(folder);
@@ -367,6 +382,18 @@ public class FileOperator {
 			Map<String,Integer> edgeReverseMap = new HashMap<String,Integer>();
 			List<List<Integer>> pointAdjacents = new ArrayList<List<Integer>>();
 			Map<String,Integer> pointReverseMap = new HashMap<String,Integer>();
+
+			// Bounding box (in the same local pixel space as width/height) per emitted triangle,
+			// index-aligned with the triangle IDs written to Triangles.txt, so a spatial grid can
+			// be built once here rather than re-derived from a lookup at runtime every load.
+			List<double[]> triangleBoundingBoxes = new ArrayList<double[]>();
+
+			// The same triangles again as bare coordinates, and the region each came from. Regions
+			// overlap where one encloses another -- the enclosed one is drawn on top rather than cut
+			// out -- and nothing in Triangles.txt or Edges.txt says so. LayerOverlaps works it out
+			// from these, so the flood can cross between layers and areas can stop double-counting.
+			List<double[]> triangleGeometry = new ArrayList<double[]>();
+			List<Integer> triangleRegion = new ArrayList<Integer>();
 
 			int triangle = 0;
 
@@ -395,6 +422,17 @@ public class FileOperator {
 									l.add(p1); l.add(p2); l.add(p3);
 
 									if(region.getBit(region.triangleDrawOrder, z1)) {
+										triangleBoundingBoxes.add(new double[] {
+												Math.min(p1.xFloat(), Math.min(p2.xFloat(), p3.xFloat())),
+												Math.min(p1.yFloat(), Math.min(p2.yFloat(), p3.yFloat())),
+												Math.max(p1.xFloat(), Math.max(p2.xFloat(), p3.xFloat())),
+												Math.max(p1.yFloat(), Math.max(p2.yFloat(), p3.yFloat()))
+										});
+										triangleGeometry.add(new double[] {
+												p1.xFloat(), p1.yFloat(), p2.xFloat(), p2.yFloat(), p3.xFloat(), p3.yFloat()
+										});
+										triangleRegion.add(Integer.valueOf(j));
+
 										int p1i = checkAndAddPoint(points, pointReverseMap, p1, minX, minY, maxX, maxY, width, height);
 										int p2i = checkAndAddPoint(points, pointReverseMap, p2, minX, minY, maxX, maxY, width, height);
 										int p3i = checkAndAddPoint(points, pointReverseMap, p3, minX, minY, maxX, maxY, width, height);
@@ -479,6 +517,10 @@ public class FileOperator {
 			}
 			writer.close();
 
+			writeSpatialGrid(triangleBoundingBoxes, folder, width, height, targetTrianglesPerGridCell);
+			writeLayerOverlaps(triangleGeometry, triangleRegion, triangleBoundingBoxes, folder,
+					minX, minY, maxX, maxY, width, height);
+
 			System.out.println("num triangles: "+triangle);
 			System.out.println("num edges: "+edges.size());
 			System.out.println("num points: "+points.size());
@@ -555,6 +597,249 @@ public class FileOperator {
 			}
 			writer.close();
 		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Writes Layers.txt: one line per triangle, "coveredArea" followed by the indices of the
+	 * triangles on other layers sharing its ground.
+	 *
+	 * coveredArea is how much of the triangle sits beneath later-drawn triangles, so a caller adding
+	 * up terrain areas can subtract it and count each patch of ground once. It is the area of their
+	 * union rather than the sum, because two triangles stacked on the same spot would otherwise
+	 * appear to hide more of it than it has.
+	 *
+	 * It is written in SQUARE KILOMETRES rather than the tile pixels LayerOverlaps works in. The
+	 * engine measures everything in kilometres, and a number that must be converted before use is
+	 * a trap -- it caught the first check written against this file, which reported 296% of a
+	 * tile's land as hidden. A pixel covers less ground the further from the equator it sits, so
+	 * the conversion is done per triangle at its own centroid rather than once for the tile.
+	 */
+	private static void writeLayerOverlaps(List<double[]> geometry, List<Integer> region,
+			List<double[]> boundingBoxes, String folder,
+			double minX, double minY, double maxX, double maxY, int width, int height) {
+		try {
+			long t0 = System.currentTimeMillis();
+			LayerOverlaps.Result overlaps = LayerOverlaps.compute(geometry, region, boundingBoxes);
+
+			double degreesPerPixelX = (maxX - minX) * 360.0 / width;
+			double degreesPerPixelY = (maxY - minY) * 180.0 / height;
+
+			BufferedWriter writer = new BufferedWriter(new FileWriter(folder + "Layers.txt"));
+			int withNeighbors = 0;
+			double totalCovered = 0;
+			for (int i = 0; i < geometry.size(); i++) {
+				if (i > 0) writer.write("\n");
+				double[] g = geometry.get(i);
+				double centroidY = (g[1] + g[3] + g[5]) / 3.0;
+				// The mesh's y runs opposite to latitude, so negate it to get one.
+				double latitude = -((maxY - minY) * centroidY / height - 0.5 + minY) * 180.0;
+				double kmPerSquarePixel = (degreesPerPixelX * 111.32 * Math.cos(Math.toRadians(latitude)))
+						* (degreesPerPixelY * 110.57);
+				double coveredKm2 = overlaps.coveredArea[i] * kmPerSquarePixel;
+
+				writer.write(Double.toString(coveredKm2));
+				List<Integer> neighbors = overlaps.neighbors.get(i);
+				if (!neighbors.isEmpty()) withNeighbors++;
+				totalCovered += coveredKm2;
+				for (Integer neighbor : neighbors) writer.write("," + neighbor);
+			}
+			writer.close();
+
+			System.out.println("done: cross-layer overlaps, " + overlaps.pairs + " pairs over "
+					+ withNeighbors + " triangles, " + Math.round(totalCovered)
+					+ " km2 hidden, in " + (System.currentTimeMillis() - t0) / 1000 + " s");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	// Builds a uniform grid over the tile's local pixel space (0..width, 0..height, the same
+	// space triangleBoundingBoxes are in) and writes, for each cell, the indices of the
+	// triangles whose bounding box overlaps it. Grid resolution is derived from the actual
+	// triangle count so that cells hold roughly targetTrianglesPerGridCell triangles on average,
+	// and the two axes are sized proportionally to width/height so cells stay roughly square
+	// even for tiles that aren't (e.g. a single zoom-level-0 tile covering the whole map, which
+	// is twice as wide as it is tall). First line of Grid.txt is "gridWidth,gridHeight"; every
+	// following line lists that cell's candidate triangle indices, in row-major order.
+	private static void writeSpatialGrid(List<double[]> triangleBoundingBoxes, String folder, int width, int height, int targetTrianglesPerGridCell) {
+		try {
+			int numTriangles = triangleBoundingBoxes.size();
+			int density = Math.max(1, targetTrianglesPerGridCell);
+
+			double targetCells = Math.max(1.0, (double) numTriangles / density);
+			int gridWidth = Math.max(1, (int) Math.round(Math.sqrt(targetCells * width / (double) height)));
+			int gridHeight = Math.max(1, (int) Math.round(Math.sqrt(targetCells * height / (double) width)));
+
+			List<List<Integer>> cells = new ArrayList<List<Integer>>();
+			for (int i = 0; i < gridWidth * gridHeight; i++) cells.add(new ArrayList<Integer>());
+
+			for (int t = 0; t < numTriangles; t++) {
+				double[] bbox = triangleBoundingBoxes.get(t);
+				int cellMinX = clampCell((int) Math.floor(bbox[0] / width * gridWidth), gridWidth);
+				int cellMinY = clampCell((int) Math.floor(bbox[1] / height * gridHeight), gridHeight);
+				int cellMaxX = clampCell((int) Math.floor(bbox[2] / width * gridWidth), gridWidth);
+				int cellMaxY = clampCell((int) Math.floor(bbox[3] / height * gridHeight), gridHeight);
+
+				for (int cy = cellMinY; cy <= cellMaxY; cy++) {
+					for (int cx = cellMinX; cx <= cellMaxX; cx++) {
+						cells.get(cy * gridWidth + cx).add(t);
+					}
+				}
+			}
+
+			BufferedWriter writer = new BufferedWriter(new FileWriter(folder + "Grid.txt"));
+			writer.write(gridWidth + "," + gridHeight);
+			for (int c = 0; c < cells.size(); c++) {
+				writer.write("\n");
+				List<Integer> candidates = cells.get(c);
+				for (int i = 0; i < candidates.size(); i++) {
+					if (i > 0) writer.write(",");
+					writer.write(String.valueOf(candidates.get(i)));
+				}
+			}
+			writer.close();
+
+			System.out.println("grid: "+gridWidth+"x"+gridHeight+" cells for "+numTriangles+" triangles");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static int clampCell(int cell, int gridSize) {
+		return Math.max(0, Math.min(gridSize - 1, cell));
+	}
+
+	private static void writeInt32LE(OutputStream out, int v) throws IOException {
+		out.write(v & 0xFF);
+		out.write((v >>> 8) & 0xFF);
+		out.write((v >>> 16) & 0xFF);
+		out.write((v >>> 24) & 0xFF);
+	}
+
+	private static void writeDoubleLE(OutputStream out, double d) throws IOException {
+		long bits = Double.doubleToLongBits(d);
+		for (int i = 0; i < 8; i++) {
+			out.write((int) ((bits >>> (8 * i)) & 0xFF));
+		}
+	}
+
+	private static List<String> readLines(String path) throws IOException {
+		List<String> lines = new ArrayList<String>();
+		BufferedReader reader = new BufferedReader(new FileReader(path));
+		String line;
+		while ((line = reader.readLine()) != null) lines.add(line);
+		reader.close();
+		return lines;
+	}
+
+	// Re-reads one tile's already-written Triangles.txt/Edges.txt/Points.txt/Grid.txt (the exact
+	// files finalPrintPolygons/writeSpatialGrid just produced) and writes their content in binary,
+	// resolving the text format's "terrain value carries forward until the next explicit one"
+	// scheme into an explicit value per triangle so the reader doesn't need to replicate it.
+	private static void writeTileBinary(OutputStream out, String tileFolder) throws IOException {
+		List<String> triangleLines = readLines(tileFolder + "Triangles.txt");
+		writeInt32LE(out, triangleLines.size());
+		int terrainData = 0;
+		for (String line : triangleLines) {
+			String[] f = line.split(",");
+			writeInt32LE(out, Integer.parseInt(f[0]));
+			writeInt32LE(out, Integer.parseInt(f[1]));
+			writeInt32LE(out, Integer.parseInt(f[2]));
+			out.write(f[3].equals("1") ? 1 : 0);
+			out.write(f[4].equals("1") ? 1 : 0);
+			out.write(f[5].equals("1") ? 1 : 0);
+			if (f.length > 6) terrainData = Integer.parseInt(f[6]);
+			writeInt32LE(out, terrainData);
+		}
+
+		List<String> edgeLines = readLines(tileFolder + "Edges.txt");
+		writeInt32LE(out, edgeLines.size());
+		for (String line : edgeLines) {
+			String[] f = line.split(",");
+			writeInt32LE(out, Integer.parseInt(f[0]));
+			writeInt32LE(out, Integer.parseInt(f[1]));
+			writeInt32LE(out, Integer.parseInt(f[2]));
+			writeInt32LE(out, f.length > 3 ? Integer.parseInt(f[3]) : -1);
+			writeInt32LE(out, f.length > 4 ? Integer.parseInt(f[4]) : -1);
+		}
+
+		List<String> pointLines = readLines(tileFolder + "Points.txt");
+		writeInt32LE(out, pointLines.size());
+		for (String line : pointLines) {
+			String[] f = line.split(",");
+			writeDoubleLE(out, Double.parseDouble(f[0]));
+			writeDoubleLE(out, Double.parseDouble(f[1]));
+			writeInt32LE(out, f.length - 2);
+			for (int i = 2; i < f.length; i++) writeInt32LE(out, Integer.parseInt(f[i]));
+		}
+
+		writeLayerBinary(out, tileFolder);
+
+		List<String> gridLines = readLines(tileFolder + "Grid.txt");
+		String[] gridHeader = gridLines.get(0).split(",");
+		int gridWidth = Integer.parseInt(gridHeader[0]);
+		int gridHeight = Integer.parseInt(gridHeader[1]);
+		writeInt32LE(out, gridWidth);
+		writeInt32LE(out, gridHeight);
+		for (int c = 0; c < gridWidth * gridHeight; c++) {
+			String line = c + 1 < gridLines.size() ? gridLines.get(c + 1) : "";
+			if (line.isEmpty()) {
+				writeInt32LE(out, 0);
+			} else {
+				String[] f = line.split(",");
+				writeInt32LE(out, f.length);
+				for (String s : f) writeInt32LE(out, Integer.parseInt(s));
+			}
+		}
+	}
+
+	// Consolidates every tile's Triangles/Edges/Points/Grid text files for one zoom level into a
+	// single LevelData.bin, so the game can load a whole level with one file read instead of
+	// scanning and parsing text across every x_y subfolder. The per-tile text files are left in
+	// place for debugging. Tile order matches FMapLowZoom.cpp's read order (x outer, y inner).
+	/**
+	 * Appends the cross-layer section: per triangle, the area hidden beneath later-drawn triangles
+	 * followed by the indices of every triangle sharing its ground.
+	 *
+	 * A tile generated before Layers.txt existed writes a zero count, so the reader can tell an
+	 * absent section from an empty one without the file lengths disagreeing.
+	 */
+	private static void writeLayerBinary(OutputStream out, String tileFolder) throws IOException {
+		File file = new File(tileFolder + "Layers.txt");
+		if (!file.exists()) {
+			writeInt32LE(out, 0);
+			return;
+		}
+		List<String> lines = readLines(tileFolder + "Layers.txt");
+		writeInt32LE(out, lines.size());
+		for (String line : lines) {
+			String[] f = line.split(",");
+			writeDoubleLE(out, Double.parseDouble(f[0]));
+			writeInt32LE(out, f.length - 1);
+			for (int i = 1; i < f.length; i++) writeInt32LE(out, Integer.parseInt(f[i]));
+		}
+	}
+
+	public static void writeLevelBinary(String levelFolder, int w, int h) {
+		try {
+			OutputStream out = new BufferedOutputStream(new FileOutputStream(levelFolder + "LevelData.bin"));
+
+			writeInt32LE(out, LEVEL_DATA_MAGIC);
+			writeInt32LE(out, LEVEL_DATA_VERSION);
+			writeInt32LE(out, w);
+			writeInt32LE(out, h);
+
+			for (int x = 0; x < w; x++) {
+				for (int y = 0; y < h; y++) {
+					writeTileBinary(out, levelFolder + x + "_" + y + "\\");
+				}
+			}
+
+			out.close();
+			System.out.println("wrote level binary: " + levelFolder + "LevelData.bin");
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

@@ -386,7 +386,21 @@ public class PolygonCreator {
 		System.out.println();
 	}
 
-	void simplifyDouglasPeucker(List<Region> regions, double maxDist, double maxSize) {
+	/**
+	 * Simplifies every region's outline, leaving alone any vertex that sits on the tile boundary.
+	 *
+	 * Each tile is a separate run of processMap(), so the neighbouring tile simplifies its own copy
+	 * of the same coastline independently. Whatever this drops on one side of a seam, the other side
+	 * keeps unless it happens to make the same decision -- and it does not: on the finished level-2
+	 * output only 19 of 55 vertices matched along the x = -135 seam, the rest differing by a median
+	 * of 33 km and by as much as 144 km. That is what breaks the coast and river lines at tile edges,
+	 * and it also leaves boundary edges unmatchable, so nothing downstream can pair a triangle with
+	 * its neighbour across a tile.
+	 *
+	 * width and height are the tile's local pixel extent, the same ones addRandomNoise() uses to
+	 * decide which points it may displace.
+	 */
+	void simplifyDouglasPeucker(List<Region> regions, double maxDist, double maxSize, int width, int height) {
 		int nn = regions.size();
 		for(int i=nn-1;i>=0;i--) {
 			if((nn - 1 - i) % 1000 == 0) System.out.println((nn - 1 - i)+"/"+nn);
@@ -408,11 +422,11 @@ public class PolygonCreator {
 					}
 
 					if(segments.size() == 0) {
-						simplifyRecursive(regions, i, 0, n - 1, maxDist, maxSize, prevSize);
+						simplifyRecursive(regions, i, 0, n - 1, maxDist, maxSize, prevSize, width, height);
 					} else {
 						for(int j=0;j<segments.size();j++) {
 							int jj = (j+1)%segments.size();
-							simplifyRecursive(regions, i, segments.get(j)%n, segments.get(jj) - 1, maxDist, maxSize, prevSize);
+							simplifyRecursive(regions, i, segments.get(j)%n, segments.get(jj) - 1, maxDist, maxSize, prevSize, width, height);
 						}
 					}
 				}
@@ -420,7 +434,18 @@ public class PolygonCreator {
 		}
 	}
 
-	private static void simplifyRecursive(List<Region> regions, int idx, int start, int end, double maxDist, double maxSize, int prevSize) {
+	/**
+	 * True for a point on the tile's edge, using exactly the test addRandomNoise() applies when it
+	 * decides a point may not be displaced. The two must agree: a point that keeps its position but
+	 * gets deleted is no more shared with the neighbouring tile than one that moves.
+	 */
+	private static boolean isOnTileBoundary(Point p, int width, int height) {
+		int x = p.xInt();
+		int y = p.yInt();
+		return x <= 0 || x >= width || y <= 0 || y >= height;
+	}
+
+	private static void simplifyRecursive(List<Region> regions, int idx, int start, int end, double maxDist, double maxSize, int prevSize, int width, int height) {
 		Region region = regions.get(idx);
 		int n = region.polygon.size();
 
@@ -450,6 +475,19 @@ public class PolygonCreator {
 
 		if(dMax == -1) return;
 		if(dMax > maxDist) valid = false;
+
+		// removeSegment() below drops the vertices strictly between pStart and pEnd, that is
+		// start+1 .. end. If any of those is on the tile boundary, refuse the cut and let the
+		// recursion split around it, so both tiles keep the identical vertex set along the seam.
+		if(valid) {
+			for(int i = (start+1)%n; ; i = (i+1)%n) {
+				if(isOnTileBoundary(region.polygon.get(i), width, height)) {
+					valid = false;
+					break;
+				}
+				if(i == end) break;
+			}
+		}
 
 		// check if making the cut would not lead to intersections in this polygon
 		int oppRegion = region.opposingRegions.get(start);
@@ -485,8 +523,12 @@ public class PolygonCreator {
 		}
 
 		if (!valid) {
-			simplifyRecursive(regions, idx, start, index, maxSize, maxDist, prevSize);
-			simplifyRecursive(regions, idx, index, end, maxSize, maxDist, prevSize);
+			// maxDist then maxSize, matching the signature. These two were transposed here, so every
+			// recursive step ran with the deviation tolerance and the area cap swapped -- at level 1
+			// that meant 10 and 20 where 20 and 10 were intended. Only the two top-level calls in
+			// simplifyDouglasPeucker() were passing them the right way round.
+			simplifyRecursive(regions, idx, start, index, maxDist, maxSize, prevSize, width, height);
+			simplifyRecursive(regions, idx, index, end, maxDist, maxSize, prevSize, width, height);
 		} else {
 			int[] indices1 = region.getSegmentIndices(pStart, pEnd, oppRegion);
 			if(oppRegion >= 0 && regions.get(oppRegion).outerNeighbors.contains(idx)) {
@@ -1027,7 +1069,7 @@ public class PolygonCreator {
 		}
 	}
 
-	List<Region> initRegions(int[][] mapData, int scale, double minSize, double minX, double minY, double maxX, double maxY, String traceFolder, Trace trace) {
+	List<Region> initRegions(int[][] mapData, int scale, double minSize, double minX, double minY, double maxX, double maxY, GlobalRegions global, SeamProfiles seams, String traceFolder, Trace trace) {
 		System.out.println("start: create initial polygons");
 		
 		int margin = (int) Math.round(mapData.length * (maxX - minX) * 0.2);
@@ -1065,7 +1107,7 @@ public class PolygonCreator {
 		
 		System.out.println("---");
 		
-		regionResult = MapOperator.removeSmallRegionsInRegionMap(regionResult, mapData, minSize, Math.max(1, 4 / scale), minX, minY, maxX, maxY, margin, traceFolder, trace);
+		regionResult = MapOperator.removeSmallRegionsInRegionMap(regionResult, mapData, minSize, Math.max(1, 4 / scale), minX, minY, maxX, maxY, margin, global, traceFolder, trace);
 		// after cropping (removing small regions uses a margin to ensure that adjacent tiles have similar borders), some 'regions' may no longer be contiguous, so we need to find regions again:
 		croppedRegions = new int[maxXint - minXint][maxYint - minYint];
 		for(int x=0; x<croppedRegions.length; x++) {
@@ -1073,6 +1115,10 @@ public class PolygonCreator {
 				croppedRegions[x][y] = regionResult.type[regionResult.regions[x][y]];
 			}
 		}
+		// Small-region removal has had its say; adopt the neighbours' version of the shared edges
+		// before the regions are traced, so both sides of a seam are outlining the same pixels.
+		if(seams != null) seams.reconcile(croppedRegions, minXint, minYint, maxXint, maxYint);
+
 		regionResult = findRegions(croppedRegions, 0, 0, regionResult.regions.length, regionResult.regions[0].length);
 		
 		if(traceVisualRegions(trace)) visualizeRegion(regionResult.regions, traceFolder+VISUAL_REGIONS_SMALL_REMOVED_FILENAME);
@@ -1221,8 +1267,8 @@ public class PolygonCreator {
 		return regions;
 	}
 
-	List<Region> initAndPruneMap(int[][] mapData, int scale, double minSize, double minX, double minY, double maxX, double maxY, String traceFolder, Trace trace) {
-		List<Region> regions = initRegions(mapData, scale, minSize, minX, minY, maxX, maxY, traceFolder, trace);
+	List<Region> initAndPruneMap(int[][] mapData, int scale, double minSize, double minX, double minY, double maxX, double maxY, GlobalRegions global, SeamProfiles seams, String traceFolder, Trace trace) {
+		List<Region> regions = initRegions(mapData, scale, minSize, minX, minY, maxX, maxY, global, seams, traceFolder, trace);
 		System.out.println(getTotalnumPoints(regions));
 
 		basicPrune(regions);
@@ -1234,16 +1280,16 @@ public class PolygonCreator {
 		return regions;
 	}
 
-	void processMap(int[][] mapData, String outputFolder, String traceFolder, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, MapName name) {
-		processMap(mapData, outputFolder, traceFolder, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name, Trace.NONE);
+	void processMap(int[][] mapData, String outputFolder, String traceFolder, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, int targetTrianglesPerGridCell, MapName name) {
+		processMap(mapData, outputFolder, traceFolder, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, targetTrianglesPerGridCell, name, Trace.NONE);
 	}
 
-	void processMap(int[][] mapData, String outputFolder, String traceFolder, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, MapName name, Trace trace) {
-		processMap(mapData, outputFolder, traceFolder, 0., 0., 1., 1., scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name, trace);
+	void processMap(int[][] mapData, String outputFolder, String traceFolder, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, int targetTrianglesPerGridCell, MapName name, Trace trace) {
+		processMap(mapData, outputFolder, traceFolder, 0., 0., 1., 1., scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, targetTrianglesPerGridCell, null, null, name, trace);
 	}
 
-	void processMap(int[][] mapData, String outputFolder, String traceFolder, double minX, double minY, double maxX, double maxY, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, MapName name, Trace trace) {
-		List<Region> regions = initAndPruneMap(mapData, scale, minRegionSize, minX, minY, maxX, maxY, traceFolder, trace);
+	void processMap(int[][] mapData, String outputFolder, String traceFolder, double minX, double minY, double maxX, double maxY, int scale, double minRegionSize, double distortFactor, double maxDouglasPeuckerDist, double maxDouglasPeuckerSize, double maxRiverDPDist, int targetTrianglesPerGridCell, GlobalRegions global, SeamProfiles seams, MapName name, Trace trace) {
+		List<Region> regions = initAndPruneMap(mapData, scale, minRegionSize, minX, minY, maxX, maxY, global, seams, traceFolder, trace);
 		int w = (int) Math.round(mapData.length * (maxX - minX));
 		int h = (int) Math.round(mapData[0].length * (maxY - minY));
 
@@ -1260,7 +1306,7 @@ public class PolygonCreator {
 
 		if(traceText(trace)) FileOperator.printRegionListToFile(regions, traceFolder+POLYGONS_DISTORTED_FILENAME, true);
 
-		simplifyDouglasPeucker(regions, maxDouglasPeuckerDist, maxDouglasPeuckerSize); // lower means less smoothing
+		simplifyDouglasPeucker(regions, maxDouglasPeuckerDist, maxDouglasPeuckerSize, w, h); // lower means less smoothing
 		System.out.println("done: simplify using Douglas-Peucker");
 		System.out.println(getTotalnumPoints(regions));
 
@@ -1277,7 +1323,7 @@ public class PolygonCreator {
 		determineTriangleDrawOrders(regions, traceFolder, trace);
 		System.out.println("done: determine triangle draw order");
 
-		FileOperator.finalPrintPolygons(regions, outputFolder, minX, minY, maxX, maxY, w, h);
+		FileOperator.finalPrintPolygons(regions, outputFolder, minX, minY, maxX, maxY, w, h, targetTrianglesPerGridCell);
 	}
 
 	//	public void runSample(int scale, MapName name) {
@@ -1373,25 +1419,37 @@ public class PolygonCreator {
 	public void run(
 			MapName name,
 			int scale,
-			double minRegionSize, 
-			double distortFactor, 
-			double maxDouglasPeuckerDist, 
-			double maxDouglasPeuckerSize, 
+			double minRegionSize,
+			double distortFactor,
+			double maxDouglasPeuckerDist,
+			double maxDouglasPeuckerSize,
 			double maxRiverDPDist,
+			int targetTrianglesPerGridCell,
 			int w,
 			int h,
 			int level,
 			Trace trace
 			) {
-		FileOperator.writeParameterSpecFile(getPolygonFolderName(name)+"\\Level_"+level+"\\", name, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, w, h, level, trace);
-		
+		FileOperator.writeParameterSpecFile(getPolygonFolderName(name)+"\\Level_"+level+"\\", name, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, targetTrianglesPerGridCell, w, h, level, trace);
+
+		// Built once for the level rather than once per tile. It was identical every time anyway --
+		// mergeMapData() takes no tile arguments -- and the two steps below both depend on every tile
+		// working from the same map, which is the whole point of them.
+		int[][] mapData = mergeMapData(scale, name);
+		MapOperator.makeTileSeamsCanonical(mapData, w, h);
+		GlobalRegions global = GlobalRegions.find(mapData);
+		SeamProfiles seams = new SeamProfiles();
+
 		for(int y=0;y<h;y++) {
 			for(int x=0;x<w;x++) {
 				String polygonFolder = getPolygonFolderName(name)+"\\Level_"+level+"\\"+x+"_"+y+"\\";
 				String traceFolder = getTraceFolderName(name)+"\\Level_"+level+"\\"+x+"_"+y+"\\";
-				new PolygonCreator().processMap(mergeMapData(scale, name), polygonFolder, traceFolder, 1. * x / w, 1. * y / h, 1. * (x+1) / w, 1. * (y + 1) / h, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name, trace);
+				new PolygonCreator().processMap(mapData, polygonFolder, traceFolder, 1. * x / w, 1. * y / h, 1. * (x+1) / w, 1. * (y + 1) / h, scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, targetTrianglesPerGridCell, global, seams, name, trace);
 			}
 		}
+
+		// Consolidate this level's per-tile text output into the single binary file the game loads.
+		FileOperator.writeLevelBinary(getPolygonFolderName(name)+"\\Level_"+level+"\\", w, h);
 		//		processMap(mergeMapData(scale, name), getPolygonFolderName(name)+"\\Level_1\\0_0\\", getTraceFolderName(name)+"\\Level_1\\0_0\\", scale, minRegionSize, distortFactor, maxDouglasPeuckerDist, maxDouglasPeuckerSize, maxRiverDPDist, name);
 	}
 
@@ -1406,34 +1464,37 @@ public class PolygonCreator {
 
 		// comment out as appropriate
 
+		// Default target average triangles per spatial-grid cell (see FileOperator.writeSpatialGrid).
+		int gridDensity = 12;
+
 		// Earth, 1CE, zoom level 1, 2
-//		run(MapName.EARTH_1_CE, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
-//		
+//		run(MapName.EARTH_1_CE, 4, 1500, 0.05, 20, 10, 200000, gridDensity, 1, 1, 1, Trace.VISUAL_REGIONS);
+
 //		// zoom level 2
-//		run(MapName.EARTH_1_CE, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
-//		
+//		run(MapName.EARTH_1_CE, 2, 400, 0.025, 10, 5, 100000, gridDensity, 8, 4, 2, Trace.VISUAL_REGIONS);
+
 //		// zoom level 3
-//		run(MapName.EARTH_1_CE, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
-		
+//		run(MapName.EARTH_1_CE, 2, 100, 0.0125, 5, 2.5, 50000, gridDensity, 16, 8, 3, Trace.VISUAL_REGIONS);
+
 		// zoom level 4
-//		run(MapName.EARTH_1_CE, 2, 25, 0.0625, 2.5, 1.25, 25000, 32, 16, 4, Trace.VISUAL_REGIONS);
-		
+		run(MapName.EARTH_1_CE, 2, 25, 0.0625, 2.5, 1.25, 25000, gridDensity, 32, 16, 4, Trace.VISUAL_REGIONS);
+
 		// zoom level 5
-//		run(MapName.EARTH_1_CE, 2, 5, 0.025, 1.25, 0.5, 12500, 64, 32, 5, Trace.VISUAL_REGIONS);
-		
+		run(MapName.EARTH_1_CE, 2, 5, 0.025, 1.25, 0.5, 12500, gridDensity, 64, 32, 5, Trace.VISUAL_REGIONS);
+
 		// Earth, 16000BCE, zoom level 1
-//		run(MapName.EARTH_16K_BCE, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
-		
+//		run(MapName.EARTH_16K_BCE, 4, 1500, 0.05, 20, 10, 200000, gridDensity, 1, 1, 1, Trace.VISUAL_REGIONS);
+
 		// zoom level 2
-//		run(MapName.EARTH_16K_BCE, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
-		
+//		run(MapName.EARTH_16K_BCE, 2, 400, 0.025, 10, 5, 100000, gridDensity, 8, 4, 2, Trace.VISUAL_REGIONS);
+
 		// zoom level 3
-//		run(MapName.EARTH_16K_BCE, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
+//		run(MapName.EARTH_16K_BCE, 2, 100, 0.0125, 5, 2.5, 50000, gridDensity, 16, 8, 3, Trace.VISUAL_REGIONS);
 
 		// Nirn (the Elder Scrolls), zoom level 1
-		run(MapName.TES_NIRN, 4, 1500, 0.05, 20, 10, 200000, 1, 1, 1, Trace.VISUAL_REGIONS);
-		run(MapName.TES_NIRN, 2, 400, 0.025, 10, 5, 100000, 8, 4, 2, Trace.VISUAL_REGIONS);
-		run(MapName.TES_NIRN, 2, 100, 0.0125, 5, 2.5, 50000, 16, 8, 3, Trace.VISUAL_REGIONS);
+//		run(MapName.TES_NIRN, 4, 1500, 0.05, 20, 10, 200000, gridDensity, 1, 1, 1, Trace.VISUAL_REGIONS);
+//		run(MapName.TES_NIRN, 2, 400, 0.025, 10, 5, 100000, gridDensity, 8, 4, 2, Trace.VISUAL_REGIONS);
+//		run(MapName.TES_NIRN, 2, 100, 0.0125, 5, 2.5, 50000, gridDensity, 16, 8, 3, Trace.VISUAL_REGIONS);
 
 		// Final Fantasy 6 (3) Overworld, zoom level 1
 		//		processMap(mergeMapData(4, MapName.FF6_OVERWORLD), getPolygonFolderName(MapName.FF6_OVERWORLD)+"\\Level_1\\0_0\\", getTraceFolderName(MapName.FF6_OVERWORLD)+"\\Level_1\\0_0\\", 8, 1500, 0.025, 20, 10, 100000, MapName.FF6_OVERWORLD, true);

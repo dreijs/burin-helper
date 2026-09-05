@@ -12,6 +12,51 @@ public class MapOperator {
 
 	public static final int[][] VON_NEUMANN_NBS = {{0,1}, {1,0}, {0,-1}, {-1,0}};
 
+	/**
+	 * Copies the pixel column (row) just outside each internal tile boundary onto the boundary
+	 * itself, so that the two tiles meeting there read the seam off the same source pixels.
+	 *
+	 * A tile's polygon runs along its own edge, and which stretches of that edge are land is decided
+	 * by the tile's outermost pixel column. Tile 0_0 ends at column c-1 and tile 1_0 begins at
+	 * column c, so the two sides were describing the seam from two different columns of the map, and
+	 * a coastline crossing at an angle met it at a different row on each side. That accounts for
+	 * about a fifth of the disagreement along a level-2 seam; the rest is small-region removal,
+	 * which GlobalRegions deals with.
+	 *
+	 * The cost is a strip of terrain one pixel wide -- 3.7 km at levels 2 and 3 -- taken from its
+	 * neighbour. Applying it to the shared map before any tile is generated means the margins see it
+	 * too, so both tiles agree about the seam's surroundings and not merely about the seam.
+	 *
+	 * Vertical seams go first so that the pixel where four tiles meet becomes mapData[c-1][r-1] for
+	 * all four of them: the tile below-right reaches it through the column copy and then the row
+	 * copy, the one below-left through the row copy alone, the one above-right through the column
+	 * copy alone, and the one above-left already owns it.
+	 *
+	 * x = 0 is left alone. It is the antimeridian, a map edge rather than an internal seam; nothing
+	 * downstream links triangles across it, and making it canonical would mean copying the far side
+	 * of the world into the first column.
+	 */
+	public static void makeTileSeamsCanonical(int[][] mapData, int w, int h) {
+		int mapWidth = mapData.length;
+		int mapHeight = mapData[0].length;
+
+		// The same rounding initRegions() uses to turn a tile fraction into a pixel index, so the
+		// column copied here is exactly the column some tile will take as its edge.
+		for (int k = 1; k < w; k++) {
+			int c = (int) Math.round((1. * k / w) * mapWidth);
+			if (c <= 0 || c >= mapWidth) continue;
+			for (int y = 0; y < mapHeight; y++) mapData[c][y] = mapData[c - 1][y];
+		}
+
+		for (int k = 1; k < h; k++) {
+			int r = (int) Math.round((1. * k / h) * mapHeight);
+			if (r <= 0 || r >= mapHeight) continue;
+			for (int x = 0; x < mapWidth; x++) mapData[x][r] = mapData[x][r - 1];
+		}
+
+		System.out.println("done: made " + (w - 1) + " vertical and " + (h - 1) + " horizontal tile seams canonical");
+	}
+
 	public static int colDist(int col1, int col2) {
 		int col1r = (col1 >> 16) & 0xFF; 
 		int col1g = (col1 >> 8) & 0xFF; 
@@ -137,7 +182,7 @@ public class MapOperator {
 		return true;
 	}
 
-	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, int margin, String traceFolder, Trace trace) {
+	public static RegionResult removeSmallRegionsInRegionMap(RegionResult oldResult, int[][] terrainData, double threshold, int scale, double minX, double minY, double maxX, double maxY, int margin, GlobalRegions global, String traceFolder, Trace trace) {
 		int numRegions = oldResult.numRegions;
 		int[][] regionData = oldResult.regions;
 		
@@ -159,9 +204,29 @@ public class MapOperator {
 		double[] sizes = new double[numRegions];
 		int[] terrains = new int[numRegions];
 
-		for (int x = 0; x < regionData.length; x++) {
-			for (int y = 0; y < regionData[x].length; y++) {
-				if(regionData[x][y] < Integer.MAX_VALUE) sizes[regionData[x][y]] += pixelSize(x, y, regionData.length, regionData[0].length);
+		if(global != null) {
+			// The area of the whole region, not of the part that happens to fall inside this tile's
+			// window. Every region here is a connected piece of exactly one region of the whole map,
+			// so a single pixel identifies which, and a piece of a large region is not small however
+			// little of it this tile can see. That is what makes the threshold test below give the
+			// same answer in the tile on the other side of a seam.
+			boolean[] measured = new boolean[numRegions];
+			for (int x = minXintM; x < maxXintM; x++) {
+				for (int y = minYintM; y < maxYintM; y++) {
+					int r = regionData[x][y];
+					if(r < numRegions && !measured[r]) {
+						measured[r] = true;
+						sizes[r] = global.areaAt(x, y);
+					}
+				}
+			}
+		} else {
+			// No global pass available (the standalone processMap() entry points): fall back to
+			// measuring inside the window, which is what every level built before this did.
+			for (int x = 0; x < regionData.length; x++) {
+				for (int y = 0; y < regionData[x].length; y++) {
+					if(regionData[x][y] < Integer.MAX_VALUE) sizes[regionData[x][y]] += pixelSize(x, y, regionData.length, regionData[0].length);
+				}
 			}
 		}
 

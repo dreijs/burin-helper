@@ -129,16 +129,25 @@ public class FeatureMapCreator {
 	}
 	
 	public int[][] getOceanPixels(MapName name) {
-		if(name == MapName.EARTH_1_CE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}, {13000, 2800}};
-		if(name == MapName.EARTH_16K_BCE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}, {13000, 2800}};
+		// One seed per open ocean: N Atlantic, S Atlantic, Indian, Pacific, N Pacific. {13000, 2800}
+		// used to be here too -- that is 36.67E 43.33N, the middle of the Black Sea, which is an inner
+		// sea and belongs in getSaltWaterPixels(). Being here it was classified OCEAN, and worse: the
+		// 60/240 opening in addWaterData() grows land first to pinch off narrow straits, which closes
+		// the Black Sea entirely, so the seed had no surrounding water to balance the dilation that
+		// follows and simply grew a 4-degree disc of OCEAN over the Caucasus. 248 land triangles at
+		// level 1 were tagged OCEAN because of it.
+		if(name == MapName.EARTH_1_CE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}};
+		if(name == MapName.EARTH_16K_BCE) return new int[][] {{8200, 3600}, {10000, 7000}, {15500, 6500}, {2000, 6000}, {20500, 3500}};
 		if(name == MapName.TES_NIRN) return new int[][] {{20000, 5000}, {12000, 6000}, {2500, 7500}};
 		if(name == MapName.FF6_OVERWORLD) return new int[][] {{6000, 2600}, {10200, 2600}, {950, 2600}};
 		return new int[][] {};
 	}
 	
 	public int[][] getSaltWaterPixels(MapName name) {
-		if(name == MapName.EARTH_1_CE) return new int[][] {{14380, 2725}, {13875, 3075}};
-		if(name == MapName.EARTH_16K_BCE) return new int[][] {{14380, 2725}, {13875, 3075}};
+		// Caspian (twice, north and south), and the Black Sea. These only ever seed saltWaterData,
+		// which is dilated through land-and-ocean rather than over everything, so they stay put.
+		if(name == MapName.EARTH_1_CE) return new int[][] {{14380, 2725}, {13875, 3075}, {13000, 2800}};
+		if(name == MapName.EARTH_16K_BCE) return new int[][] {{14380, 2725}, {13875, 3075}, {13000, 2800}};
 		if(name == MapName.TES_NIRN) return new int[][] {};
 		if(name == MapName.FF6_OVERWORLD) return new int[][] {};
 		return new int[][] {};
@@ -537,7 +546,13 @@ public class FeatureMapCreator {
 
 		for (int x = 0; x < featureData.length; x++) {
 			for (int y = 0; y < featureData[x].length; y++) {
-				if(waterData[x][y] == OCEAN_COLOR || waterData[x][y] == SEA_COLOR || waterData[x][y] == INNER_SEA_COLOR || waterData[x][y] == LAKE_COLOR) {
+				// featureData starts life as the elevation map, so BLUE here means this pixel really is
+				// water. The test matters because the ocean classification in addWaterData() is built by
+				// dilating ocean outward -- fillByExtension() blanks everything that is not ocean before
+				// spreading, so land offers it no resistance and a seed can push a disc of OCEAN inland.
+				// Without this, that overshoot is written into the feature map as ocean on dry ground.
+				boolean isWater = featureData[x][y] == ElevationMapCreator.BLUE;
+				if(isWater && (waterData[x][y] == OCEAN_COLOR || waterData[x][y] == SEA_COLOR || waterData[x][y] == INNER_SEA_COLOR || waterData[x][y] == LAKE_COLOR)) {
 					if(icecapData[x][y] == ICECAP_COLOR) {
 						featureData[x][y] = icecapData[x][y];
 					} else if(icecapData[x][y] == ICY_WATER_COLOR) {
